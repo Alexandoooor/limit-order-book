@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-limit-order-book
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernetes-limit-order-book
+  template:
+    metadata:
+      labels:
+        app: kubernetes-limit-order-book
+    spec:
+      containers:
+      - name: limit-order-book
+        image: limit-order-book:1.0
+        ports:
+        - containerPort: 3000
