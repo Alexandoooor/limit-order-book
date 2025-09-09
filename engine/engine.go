@@ -43,6 +43,7 @@ type Order struct {
 type Level struct {
 	price 		int
 	volume 		int
+	count		int
 	nextLevel	*Level
 	headOrder	*Order
 	tailOrder	*Order
@@ -63,6 +64,7 @@ func (ob *OrderBook) NewLevel(order Order, side Side) *Level {
 	newLevel := &Level{
 		price: order.price,
 		volume: order.size,
+		count: 1,
 		nextLevel: nil,
 		headOrder: &order,
 		tailOrder: &order,
@@ -111,7 +113,7 @@ func (ob *OrderBook) NewLevel(order Order, side Side) *Level {
 }
 
 func (ob *OrderBook) AddOrder(side Side, price int, size int) uuid.UUID {
-	o := Order{
+	newOrder := Order{
 		id: 	uuid.New(),
 		side: 	side,
 		size:	size,
@@ -122,46 +124,47 @@ func (ob *OrderBook) AddOrder(side Side, price int, size int) uuid.UUID {
 		prevOrder: nil,
 		parentLevel: nil,
 	}
-	ob.orders[o.id] = &o
+	ob.orders[newOrder.id] = &newOrder
+
 	switch side {
 	case Buy:
 		if ob.bids[price] != nil {
-			fmt.Println("-----------------------------------------------------------------------------------")
-			fmt.Println("The level exists. Add order to the level")
-			fmt.Println("-----------------------------------------------------------------------------------")
+			level := ob.bids[price]
+			newOrder.parentLevel = level
+			newOrder.prevOrder = level.tailOrder
+			level.tailOrder.nextOrder = &newOrder
+			level.tailOrder = &newOrder
+			level.volume += newOrder.remaining
+			level.count++
+
 		} else {
-			// fmt.Println("-----------------------------------------------------------------------------------")
-			// fmt.Println("The level does not exist, create a new level at this price point and add the order")
-			newLevel := ob.NewLevel(o, side)
+			newLevel := ob.NewLevel(newOrder, side)
 			ob.bids[newLevel.price] = newLevel
-			// fmt.Printf("%+v\n", newLevel)
-			// fmt.Println("-----------------------------------------------------------------------------------")
 		}
 	case Sell:
 		if ob.asks[price] != nil {
-			fmt.Println("-----------------------------------------------------------------------------------")
-			fmt.Println("The level exists. Add order to the level")
-			fmt.Println("-----------------------------------------------------------------------------------")
+			level := ob.asks[price]
+			newOrder.parentLevel = level
+			newOrder.prevOrder = level.tailOrder
+			level.tailOrder.nextOrder = &newOrder
+			level.tailOrder = &newOrder
+			level.volume += newOrder.remaining
+			level.count++
 		} else {
-
-			// fmt.Println("The level does not exist, create a new level at this price point and add the order")
-			newLevel := ob.NewLevel(o, side)
+			newLevel := ob.NewLevel(newOrder, side)
 			ob.asks[newLevel.price] = newLevel
-			// fmt.Printf("%+v\n", newLevel)
-			// fmt.Println("-----------------------------------------------------------------------------------")
 		}
-
 	}
 
-	return o.id
+	return newOrder.id
 
+}
+
+func (ob *OrderBook) LiftOrder(order Order) {
+	delete(ob.orders, order.id)
 }
 
 func (ob *OrderBook) CancelOrder() {
-
-}
-
-func (ob *OrderBook) ExecuteOrder() {
 
 }
 
@@ -170,8 +173,14 @@ func (ob *OrderBook) PrintOrder(id uuid.UUID) {
 }
 
 func (ob *OrderBook) PrintOrderBook() {
-	for _, order := range ob.orders {
-		fmt.Printf("%+v\n", order)
+	if len(ob.orders) == 0 {
+		fmt.Println("OrderBook: {}")
+	} else {
+		fmt.Println("OrderBook: {")
+		for _, order := range ob.orders {
+			fmt.Printf("	%+v\n", order)
+		}
+		fmt.Println("}")
 	}
 	fmt.Println("-----------------------------------------------------------------------------------")
 }
@@ -190,7 +199,6 @@ func (ob *OrderBook) String() string {
 	}
 	return fmt.Sprintf(
 		"OrderBook{\n 	lowestAsk: %+v\n	highestBid: %+v\n}",
-		// "OrderBook{bids: [...]\nasks: [...]\norders: [...]\n    lowestAsk: %+v\n    highestBid: %+v}\n",
 		lowestAskPrice,
 		highestBidPrice,
 	)
@@ -198,10 +206,10 @@ func (ob *OrderBook) String() string {
 
 func (l *Level) String() string {
 	return fmt.Sprintf(
-		"Level{price: %d\nvolume: %d\nnextLevel: %+v\nheadOrder: %+v\ntailOrder: %+v}\n",
-		// "Level{price: %d, volume: %d, nextLevel: %+v, headOrder: %+v, tailOrder: %+v}\n",
+		"Level{price: %d\nvolume: %d\ncount: %d\nnextLevel: %+v\nheadOrder: %+v\ntailOrder: %+v}\n",
 		l.price,
 		l.volume,
+		l.count,
 		l.nextLevel,
 		l.headOrder,
 		l.tailOrder,
