@@ -122,20 +122,57 @@ func TestMultiOrderLevel(t *testing.T) {
 	if level.count != n {
 		t.Fatalf("tests - count wrong. expected=%+v, got=%+v", n, level.count)
 	}
-
-	// ob.PrintOrderBook()
-	// t.Fatalf("%+v", level)
 }
 
-func TestLiftOrder(t *testing.T) {
+func TestRemoveTail(t *testing.T) {
 	ob := NewOrderBook()
 
-	id := ob.AddOrder(Buy, 1337, 1)
-	ob.PrintOrderBook()
-	order := ob.orders[id]
-	ob.LiftOrder(*order)
-	ob.PrintOrderBook()
+	id0 := ob.AddOrder(Buy, 1337, 1)
+	id1 := ob.AddOrder(Buy, 1337, 2) //The second order aka the tail is the one we remove
+	// ob.PrintOrderBook()
+
+	order := ob.orders[id1]
+	ob.RemoveOrder(*order)
 
 	// ob.PrintOrderBook()
-	t.Fatalf("%+v", id)
+	// t.Fatalf("parentLevel: %+v\n", order.parentLevel)
+	level := ob.bids[1337]
+	if level.tailOrder.id != id0 {
+		t.Fatalf("tests - tail wrong. expected=%+v, got=%+v", id0, level.tailOrder.id)
+	}
+}
+
+func TestRemoveHead(t *testing.T) {
+	ob := NewOrderBook()
+
+	id0 := ob.AddOrder(Buy, 7331, 1) //The first order aka the head is the one we remove
+	id1 := ob.AddOrder(Buy, 7331, 2)
+	// ob.PrintOrderBook()
+
+	order := ob.orders[id0]
+	ob.RemoveOrder(*order)
+
+	// ob.PrintOrderBook()
+	// t.Fatalf("parentLevel: %+v\n", order.parentLevel)
+
+	level := ob.bids[7331]
+	if level.headOrder.id != id1 {
+		t.Fatalf("tests - head wrong. expected=%+v, got=%+v", id1, level.headOrder.id)
+	}
+}
+
+func TestRemoveMiddle(t *testing.T) {
+	ob := NewOrderBook()
+
+	ob.AddOrder(Buy, 7331, 3)
+	id := ob.AddOrder(Buy, 7331, 1) //The middle order is removed
+	ob.AddOrder(Buy, 7331, 2)
+	// ob.PrintOrderBook()
+
+	order := ob.orders[id]
+	ob.RemoveOrder(*order)
+
+	// ob.PrintOrderBook()
+
+	// t.Fatalf("parentLevel: %+v\n", order.parentLevel)
 }

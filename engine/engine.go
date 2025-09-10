@@ -138,8 +138,12 @@ func (ob *OrderBook) AddOrder(side Side, price int, size int) uuid.UUID {
 			level.count++
 
 		} else {
-			newLevel := ob.NewLevel(newOrder, side)
-			ob.bids[newLevel.price] = newLevel
+			level := ob.NewLevel(newOrder, side)
+			ob.bids[level.price] = level
+			newOrder.parentLevel = level
+			newOrder.prevOrder = level.tailOrder
+			level.tailOrder.nextOrder = &newOrder
+			level.tailOrder = &newOrder
 		}
 	case Sell:
 		if ob.asks[price] != nil {
@@ -151,8 +155,12 @@ func (ob *OrderBook) AddOrder(side Side, price int, size int) uuid.UUID {
 			level.volume += newOrder.remaining
 			level.count++
 		} else {
-			newLevel := ob.NewLevel(newOrder, side)
-			ob.asks[newLevel.price] = newLevel
+			level := ob.NewLevel(newOrder, side)
+			ob.asks[level.price] = level
+			newOrder.parentLevel = level
+			newOrder.prevOrder = level.tailOrder
+			level.tailOrder.nextOrder = &newOrder
+			level.tailOrder = &newOrder
 		}
 	}
 
@@ -160,12 +168,43 @@ func (ob *OrderBook) AddOrder(side Side, price int, size int) uuid.UUID {
 
 }
 
-func (ob *OrderBook) LiftOrder(order Order) {
+func (ob *OrderBook) RemoveOrder(order Order) {
 	delete(ob.orders, order.id)
+	parentLevel := order.parentLevel
+	parentLevel.volume -= order.size
+	parentLevel.count--
+
+	if parentLevel.count > 0 {
+		// fmt.Printf("%+v\n", parentLevel)
+		// fmt.Printf("Prev: %+v\n", order.prevOrder)
+		// fmt.Printf("Next: %+v\n", order.nextOrder)
+		// fmt.Printf("parentLevel.tailOrder == order ? %t\n", parentLevel.tailOrder.id == order.id)
+		// fmt.Printf("parentLevel.headOrder == order ? %t\n", parentLevel.headOrder.id == order.id)
+
+		if parentLevel.headOrder.id == order.id {
+			parentLevel.headOrder = order.nextOrder
+		} else if parentLevel.tailOrder.id == order.id {
+			parentLevel.tailOrder = order.prevOrder
+		} else {
+			// A - B - C => A - C
+			A := order.prevOrder
+			C := order.nextOrder
+			A.nextOrder = C
+			C.prevOrder = A
+			// fmt.Printf("prevOrder: %+v\n", order.prevOrder.id)
+			// fmt.Printf("currOrder: %+v\n", order.id)
+			// fmt.Printf("nextOrder: %+v\n", order.nextOrder.id)
+		}
+	}
+
 }
 
 func (ob *OrderBook) CancelOrder() {
 
+}
+
+func (o Order) Equals(other Order) bool {
+	return o.id == other.id
 }
 
 func (ob *OrderBook) PrintOrder(id uuid.UUID) {
@@ -174,9 +213,9 @@ func (ob *OrderBook) PrintOrder(id uuid.UUID) {
 
 func (ob *OrderBook) PrintOrderBook() {
 	if len(ob.orders) == 0 {
-		fmt.Println("OrderBook: {}")
+		fmt.Println("OrderBook{}")
 	} else {
-		fmt.Println("OrderBook: {")
+		fmt.Println("OrderBook{")
 		for _, order := range ob.orders {
 			fmt.Printf("	%+v\n", order)
 		}
@@ -216,14 +255,45 @@ func (l *Level) String() string {
 	)
 }
 
+// func (o *Order) String() string {
+//
+//     return fmt.Sprintf(
+// 	    "Order{id: %s, side: %s, size: %d, remaining: %d, price: %d, time: %s, nextOrderId: %s, prevOrderId: %s}",
+//         o.id.String(),
+//         o.side,
+//         o.size,
+//         o.remaining,
+//         o.price,
+//         o.time.Format(time.RFC3339Nano),
+// 	o.nextOrder.id,
+// 	o.prevOrder.id,
+//     )
+// }
+
 func (o *Order) String() string {
+    var nextID, prevID string
+
+    if o.nextOrder != nil {
+        nextID = o.nextOrder.id.String()
+    } else {
+        nextID = "nil"
+    }
+
+    if o.prevOrder != nil {
+        prevID = o.prevOrder.id.String()
+    } else {
+        prevID = "nil"
+    }
+
     return fmt.Sprintf(
-        "Order{id: %s, side: %s, size: %d, remaining: %d, price: %d, time: %s}",
+        "Order{id: %s, side: %s, size: %d, remaining: %d, price: %d, time: %s, nextOrderId: %s, prevOrderId: %s}",
         o.id.String(),
         o.side,
         o.size,
         o.remaining,
         o.price,
         o.time.Format(time.RFC3339Nano),
+        nextID,
+        prevID,
     )
 }
