@@ -298,6 +298,15 @@ func (ob *OrderBook) PrintOrderBook() {
 	fmt.Println("-----------------------------------------------------------------------------------")
 }
 
+func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
+	order := ob.orders[id]
+	if order == nil {
+		return false
+	}
+	ob.RemoveOrder(*order)
+	return true
+}
+
 
 func (ob *OrderBook) String() string {
 	lowestAskPrice := 0

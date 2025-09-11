@@ -193,6 +193,30 @@ func TestRemoveOnlyOrderInLevel(t *testing.T) {
 
 }
 
+func TestCancelOrder(t *testing.T) {
+	ob := NewOrderBook()
+
+	id0 := ob.ProcessOrder(Sell, 40, 2)
+
+	isCanceled := ob.CancelOrder(id0)
+
+
+	if len(ob.orders) != 0 {
+		t.Fatalf("tests - order book should be empty. expected=%+v, got=%+v", 0, len(ob.orders))
+	}
+
+	if !isCanceled {
+		t.Fatalf("tests - Order should be canceled. expected=%t, got=%t", true, isCanceled)
+	}
+
+	isCanceled = ob.CancelOrder(id0)
+
+	if isCanceled {
+		t.Fatalf("tests - Order should no longer exist. expected=%t, got=%t", false, isCanceled)
+	}
+
+}
+
 func TestRemoveOnlyOrderInBook(t *testing.T) {
 	ob := NewOrderBook()
 
@@ -277,6 +301,51 @@ func TestProcessMultiLevelOrder(t *testing.T) {
 
 	if ob.orders[id0].remaining != 1 {
 		t.Fatalf("tests - order 0 should be partially filled." + " expected=%d, got=%+v", 1, ob.orders[id0].remaining)
+	}
+
+	id2 := ob.ProcessOrder(Sell, 41, 1)
+
+	o0 := ob.orders[id0]
+	o1 := ob.orders[id1]
+	o2 := ob.orders[id2]
+
+	if o0 != nil {
+		t.Fatalf("tests - order 0 should be executed and removed from the order book." +
+			" expected=%+v, got=%+v", nil, o0)
+	}
+
+	if o1 != nil {
+		t.Fatalf("tests - order 1 should be executed and removed from the order book." +
+			" expected=%+v, got=%+v", nil, o1)
+	}
+
+	if o2 != nil {
+		t.Fatalf("tests - order 2 should be executed and removed from the order book." +
+			" expected=%+v, got=%+v", nil, o2)
+	}
+
+	if len(ob.bids) != 0 {
+		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.bids))
+	}
+
+	if len(ob.asks) != 0 {
+		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.asks))
+	}
+
+	if len(ob.orders) != 0 {
+		t.Fatalf("tests - order book should be empty. expected=%+v, got=%+v", 0, len(ob.orders))
+	}
+
+}
+
+func TestProcessMultiLevelOrder2(t *testing.T) {
+	ob := NewOrderBook()
+
+	id0 := ob.ProcessOrder(Sell, 40, 2)
+	id1 := ob.ProcessOrder(Buy, 42, 3)
+
+	if ob.orders[id1].remaining != 1 {
+		t.Fatalf("tests - order 1 should be partially filled." + " expected=%d, got=%+v", 1, ob.orders[id1].remaining)
 	}
 
 	id2 := ob.ProcessOrder(Sell, 41, 1)
