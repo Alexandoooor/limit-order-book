@@ -20,9 +20,9 @@ func main() {
 	}
 
 	// add existing level
-	ob.AddOrder(engine.Buy, 90, 1)
+	id := ob.AddOrder(engine.Buy, 90, 1)
+	ob.PrintOrder(id)
 	fmt.Println(ob)
-
 	ob.PrintOrderBook()
 
 	// ob.AddOrder(engine.Sell, 82, 834)
