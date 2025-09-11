@@ -175,12 +175,6 @@ func (ob *OrderBook) RemoveOrder(order Order) {
 	parentLevel.count--
 
 	if parentLevel.count > 0 {
-		// fmt.Printf("%+v\n", parentLevel)
-		// fmt.Printf("Prev: %+v\n", order.prevOrder)
-		// fmt.Printf("Next: %+v\n", order.nextOrder)
-		// fmt.Printf("parentLevel.tailOrder == order ? %t\n", parentLevel.tailOrder.id == order.id)
-		// fmt.Printf("parentLevel.headOrder == order ? %t\n", parentLevel.headOrder.id == order.id)
-
 		if parentLevel.headOrder.id == order.id {
 			parentLevel.headOrder = order.nextOrder
 		} else if parentLevel.tailOrder.id == order.id {
@@ -191,9 +185,19 @@ func (ob *OrderBook) RemoveOrder(order Order) {
 			C := order.nextOrder
 			A.nextOrder = C
 			C.prevOrder = A
-			// fmt.Printf("prevOrder: %+v\n", order.prevOrder.id)
-			// fmt.Printf("currOrder: %+v\n", order.id)
-			// fmt.Printf("nextOrder: %+v\n", order.nextOrder.id)
+		}
+	} else {
+		if order.side == Buy {
+			delete(ob.bids, order.parentLevel.price)
+			if ob.HighestBid == parentLevel {
+				ob.HighestBid = parentLevel.nextLevel
+			}
+		} else {
+			delete(ob.asks, order.parentLevel.price)
+			if ob.LowestAsk == parentLevel {
+				ob.LowestAsk = parentLevel.nextLevel
+			}
+
 		}
 	}
 

@@ -129,13 +129,10 @@ func TestRemoveTail(t *testing.T) {
 
 	id0 := ob.AddOrder(Buy, 1337, 1)
 	id1 := ob.AddOrder(Buy, 1337, 2) //The second order aka the tail is the one we remove
-	// ob.PrintOrderBook()
 
 	order := ob.orders[id1]
 	ob.RemoveOrder(*order)
 
-	// ob.PrintOrderBook()
-	// t.Fatalf("parentLevel: %+v\n", order.parentLevel)
 	level := ob.bids[1337]
 	if level.tailOrder.id != id0 {
 		t.Fatalf("tests - tail wrong. expected=%+v, got=%+v", id0, level.tailOrder.id)
@@ -147,13 +144,9 @@ func TestRemoveHead(t *testing.T) {
 
 	id0 := ob.AddOrder(Buy, 7331, 1) //The first order aka the head is the one we remove
 	id1 := ob.AddOrder(Buy, 7331, 2)
-	// ob.PrintOrderBook()
 
 	order := ob.orders[id0]
 	ob.RemoveOrder(*order)
-
-	// ob.PrintOrderBook()
-	// t.Fatalf("parentLevel: %+v\n", order.parentLevel)
 
 	level := ob.bids[7331]
 	if level.headOrder.id != id1 {
@@ -164,15 +157,55 @@ func TestRemoveHead(t *testing.T) {
 func TestRemoveMiddle(t *testing.T) {
 	ob := NewOrderBook()
 
-	ob.AddOrder(Buy, 7331, 3)
-	id := ob.AddOrder(Buy, 7331, 1) //The middle order is removed
-	ob.AddOrder(Buy, 7331, 2)
-	// ob.PrintOrderBook()
+	id0 := ob.AddOrder(Buy, 7331, 3)
+	id1 := ob.AddOrder(Buy, 7331, 1) //The middle order is removed
+	id2 := ob.AddOrder(Buy, 7331, 2)
 
-	order := ob.orders[id]
+	order := ob.orders[id1]
 	ob.RemoveOrder(*order)
 
-	// ob.PrintOrderBook()
+	if ob.orders[id0].nextOrder.id != id2 {
+		t.Fatalf("tests - first.nextOrder wrong. expected=%+v, got=%+v", id2, ob.orders[id0].nextOrder.id)
+	}
 
-	// t.Fatalf("parentLevel: %+v\n", order.parentLevel)
+	if ob.orders[id2].prevOrder.id != id0 {
+		t.Fatalf("tests - last.prevOrder wrong. expected=%+v, got=%+v", id0, ob.orders[id2].prevOrder.id)
+	}
+}
+
+func TestRemoveOnlyOrderInLimit(t *testing.T) {
+	ob := NewOrderBook()
+
+	id0 := ob.AddOrder(Buy, 42, 9)
+	ob.AddOrder(Buy, 41, 9)
+
+	order := ob.orders[id0]
+	ob.RemoveOrder(*order)
+
+	if ob.bids[42] != nil {
+		t.Fatalf("tests - removing last order in level should delete level. expected=%+v, got=%+v", nil, ob.bids[42])
+	}
+
+	if ob.HighestBid != ob.bids[41] {
+		t.Fatalf("tests - HighestBid not moved to nextLevel. expected=%+v, got=%+v", ob.bids[41], ob.HighestBid)
+	}
+
+}
+
+func TestRemoveOnlyOrderInBook(t *testing.T) {
+	ob := NewOrderBook()
+
+	id0 := ob.AddOrder(Buy, 42, 9)
+
+	order := ob.orders[id0]
+	ob.RemoveOrder(*order)
+
+	if ob.bids[42] != nil {
+		t.Fatalf("tests - removing last order in level should delete level. expected=%+v, got=%+v", nil, ob.bids[42])
+	}
+
+	if ob.HighestBid != nil {
+		t.Fatalf("tests - HighestBid not nil after removing only order in book. expected=%+v, got=%+v", nil, ob.HighestBid)
+	}
+
 }
