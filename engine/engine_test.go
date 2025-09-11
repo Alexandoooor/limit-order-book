@@ -1,10 +1,8 @@
 package engine
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"testing"
-
 	"github.com/google/uuid"
 )
 
@@ -231,13 +229,13 @@ func TestProcessPartialOrder(t *testing.T) {
 	}
 
 	if o0 != nil {
-		t.Fatalf("tests - order %d was completely filled and should have " +
-			"been removed from the orderbook. expected=%v, got=%+v",
+		t.Fatalf("tests - order %d was completely filled and should have" +
+			" been removed from the orderbook. expected=%v, got=%+v",
 			id0, nil, o1)
 	}
 }
 
-func TestProcessWholeBuyOrder(t *testing.T) {
+func TestProcessWholeOrder(t *testing.T) {
 	ob := NewOrderBook()
 
 	id0 := ob.ProcessOrder(Buy, 42, 2)
@@ -246,38 +244,72 @@ func TestProcessWholeBuyOrder(t *testing.T) {
 	o0 := ob.orders[id0]
 	o1 := ob.orders[id1]
 
-	fmt.Println(o0)
-	fmt.Println(o1)
-	fmt.Println(ob.bids)
-	fmt.Println(ob.asks)
+	if o0 != nil {
+		t.Fatalf("tests - order 0 should be executed and removed from the order book." +
+			" expected=%+v, got=%+v", nil, o0)
+	}
 
-	t.Fatalf("")
-	// if ob.bids[42] != nil {
-	// 	t.Fatalf("tests - removing last order in level should delete level. expected=%+v, got=%+v", nil, ob.bids[42])
-	// }
-	//
-	// if ob.highestBid != nil {
-	// 	t.Fatalf("tests - highestBid not nil after removing only order in book. expected=%+v, got=%+v", nil, ob.highestBid)
-	// }
+	if o1 != nil {
+		t.Fatalf("tests - order 1 should be executed and removed from the order book." +
+			" expected=%+v, got=%+v", nil, o1)
+	}
+
+	if len(ob.bids) != 0 {
+		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.bids))
+	}
+
+	if len(ob.asks) != 0 {
+		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.asks))
+	}
+
+	if len(ob.orders) != 0 {
+		t.Fatalf("tests - order book should be empty. expected=%+v, got=%+v", 0, len(ob.orders))
+	}
+
 
 }
-//
-// func TestProcessWholeSellOrder(t *testing.T) {
-// 	ob := NewOrderBook()
-//
-// 	ob.AddOrder(uuid.New(), Buy, 43, 1, 1)
-// 	id1 := ob.AddOrder(uuid.New(), Sell, 42, 1, 1)
-//
-// 	order := ob.orders[id1]
-// 	ob.ProcessOrder(*order)
-//
-// 	t.Fatalf("")
-// 	// if ob.bids[42] != nil {
-// 	// 	t.Fatalf("tests - removing last order in level should delete level. expected=%+v, got=%+v", nil, ob.bids[42])
-// 	// }
-// 	//
-// 	// if ob.highestBid != nil {
-// 	// 	t.Fatalf("tests - highestBid not nil after removing only order in book. expected=%+v, got=%+v", nil, ob.highestBid)
-// 	// }
-//
-// }
+
+func TestProcessMultiLevelOrder(t *testing.T) {
+	ob := NewOrderBook()
+
+	id0 := ob.ProcessOrder(Buy, 42, 3)
+	id1 := ob.ProcessOrder(Sell, 40, 2)
+
+	if ob.orders[id0].remaining != 1 {
+		t.Fatalf("tests - order 0 should be partially filled." + " expected=%d, got=%+v", 1, ob.orders[id0].remaining)
+	}
+
+	id2 := ob.ProcessOrder(Sell, 41, 1)
+
+	o0 := ob.orders[id0]
+	o1 := ob.orders[id1]
+	o2 := ob.orders[id2]
+
+	if o0 != nil {
+		t.Fatalf("tests - order 0 should be executed and removed from the order book." +
+			" expected=%+v, got=%+v", nil, o0)
+	}
+
+	if o1 != nil {
+		t.Fatalf("tests - order 1 should be executed and removed from the order book." +
+			" expected=%+v, got=%+v", nil, o1)
+	}
+
+	if o2 != nil {
+		t.Fatalf("tests - order 2 should be executed and removed from the order book." +
+			" expected=%+v, got=%+v", nil, o2)
+	}
+
+	if len(ob.bids) != 0 {
+		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.bids))
+	}
+
+	if len(ob.asks) != 0 {
+		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.asks))
+	}
+
+	if len(ob.orders) != 0 {
+		t.Fatalf("tests - order book should be empty. expected=%+v, got=%+v", 0, len(ob.orders))
+	}
+
+}
