@@ -173,7 +173,7 @@ func TestRemoveMiddle(t *testing.T) {
 	}
 }
 
-func TestRemoveOnlyOrderInLimit(t *testing.T) {
+func TestRemoveOnlyOrderInLevel(t *testing.T) {
 	ob := NewOrderBook()
 
 	id0 := ob.AddOrder(Buy, 42, 9)
