@@ -117,9 +117,9 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	return newLevel
 }
 
-func (ob *OrderBook) AddOrder(side Side, price int, size int, remaining int) uuid.UUID {
+func (ob *OrderBook) AddOrder(id uuid.UUID, side Side, price int, size int, remaining int) uuid.UUID {
 	newOrder := Order{
-		id: 	uuid.New(),
+		id: 	id,
 		side: 	side,
 		size:	size,
 		remaining: remaining,
@@ -201,7 +201,8 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 
 }
 
-func (ob *OrderBook) ProcessOrder(side Side, price int, size int) {
+func (ob *OrderBook) ProcessOrder(side Side, price int, size int) uuid.UUID {
+	orderId := uuid.New()
 	remaining := size
 	var isOrderBetterThanBestLevel func(int, int)bool
 	var currentBestLevel *Level
@@ -221,11 +222,8 @@ func (ob *OrderBook) ProcessOrder(side Side, price int, size int) {
 	}
 
 	if currentBestLevel == nil {
-		ob.AddOrder(side, price, size, remaining)
+		ob.AddOrder(orderId, side, price, size, remaining)
 	} else {
-		// fmt.Printf("%s\n", currentBestLevel)
-		// fmt.Printf("Order.price better than currentBestLevel: %t\n", isOrderBetterThanBestLevel(price, currentBestLevel.price))
-
 		var currentLevel *Level
 		for true {
 			if side == Buy {
@@ -239,7 +237,6 @@ func (ob *OrderBook) ProcessOrder(side Side, price int, size int) {
 			// existingOrder: An order already in the book and a candidate to be executed
 			// against an incoming order
 			existingOrder := currentLevel.headOrder
-			// fmt.Printf("existingOrder %s\n", existingOrder)
 			for existingOrder != nil && remaining > 0 {
 				if existingOrder.remaining <= remaining {
 					// If the candidate order in the book has <= remaining size than the size of the
@@ -272,10 +269,10 @@ func (ob *OrderBook) ProcessOrder(side Side, price int, size int) {
 		}
 
 		if remaining > 0 {
-			ob.AddOrder(side, price, size, remaining)
+			ob.AddOrder(orderId, side, price, size, remaining)
 		}
 	}
-
+	return orderId
 }
 
 
