@@ -4,6 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"limit-order-book/engine"
+	"limit-order-book/server"
+	"log"
+	"strconv"
+)
+
+var (
+	port   = flag.Int("port", 3000, "HTTP port")
 )
 
 func main() {
@@ -14,29 +21,24 @@ func main() {
 	// id := ob.AddOrder(engine.Buy, 88, 1)
 	// ob.PrintOrder(id)
 
-	for x := 88; x <= 92; x++ {
-		ob.AddOrder(engine.Buy, x, 1)
-		fmt.Println(ob)
-	}
-
-	// add existing level
-	id := ob.AddOrder(engine.Buy, 90, 1)
-	ob.PrintOrder(id)
+	// for x := 88; x <= 92; x++ {
+	// 	ob.ProcessOrder(engine.Buy, x, 1)
+	// 	fmt.Println(ob)
+	// }
+	//
+	// // add existing level
+	// id := ob.ProcessOrder(engine.Buy, 90, 1)
+	// ob.PrintOrder(id)
 	fmt.Println(ob)
-	ob.PrintOrderBook()
+	// ob.PrintOrderBook()
+	//
+	// ob.ProcessOrder(engine.Sell, 999, 834)
+	// ob.PrintOrderBook()
 
-	// ob.AddOrder(engine.Sell, 82, 834)
+	addr := ":" + strconv.Itoa(*port)
+	log.Printf("Stock Streamer running on http://localhost%s\n", addr)
+
+	if err := server.Serve(addr, ob); err != nil {
+		log.Fatal(err)
+	}
 }
-
-// cb = 92
-// cb.nextlevel = 91
-// cb.nextlevel.nextlevel = 89 -> 90
-// newLevel = 90
-
-// newLevel = 90
-// 92 91 89
-//    x
-
-
-// newLevel = 90
-// newLevel.nextLevel = 89

@@ -4,6 +4,8 @@ import (
 	"time"
 	"fmt"
     	"github.com/google/uuid"
+	"sync"
+	"os"
 )
 
 type Side int
@@ -26,6 +28,7 @@ type OrderBook struct {
 	orders		map[uuid.UUID]*Order
 	lowestAsk	*Level
 	highestBid	*Level
+	Mu 		sync.Mutex
 }
 
 type Order struct {
@@ -47,6 +50,49 @@ type Level struct {
 	nextLevel	*Level
 	headOrder	*Order
 	tailOrder	*Order
+}
+
+// For template rendering
+type LevelView struct {
+	Price  int
+	Volume int
+	Count  int
+}
+
+type OrderBookView struct {
+	Bids []LevelView
+	Asks []LevelView
+	Hostname string
+}
+
+func (ob *OrderBook) BuildOrderBookView() OrderBookView {
+	view := OrderBookView{}
+
+	// Build bids list (highest first)
+	for lvl := ob.highestBid; lvl != nil; lvl = lvl.nextLevel {
+		view.Bids = append(view.Bids, LevelView{
+			Price:  lvl.price,
+			Volume: lvl.volume,
+		})
+	}
+
+	// Build asks list (lowest first)
+	for lvl := ob.lowestAsk; lvl != nil; lvl = lvl.nextLevel {
+		view.Asks = append(view.Asks, LevelView{
+			Price:  lvl.price,
+			Volume: lvl.volume,
+		})
+	}
+
+	hostname := os.Getenv("HOSTNAME")
+	if hostname == "" {
+		hostname = "unknown"
+	}
+
+	view.Hostname = hostname
+
+
+	return view
 }
 
 func NewOrderBook() *OrderBook {
@@ -296,6 +342,30 @@ func (ob *OrderBook) PrintOrderBook() {
 		fmt.Println("}")
 	}
 	fmt.Println("-----------------------------------------------------------------------------------")
+}
+
+func (ob *OrderBook) FormatOrderBook() string {
+	if len(ob.orders) == 0 {
+		return "OrderBook{}"
+	} else {
+		s := "OrderBook{"
+			s += ob.GetOrderBook()
+		s += "}"
+		return s
+	}
+}
+
+func (ob *OrderBook) GetOrderBook() string {
+	if len(ob.orders) == 0 {
+		return ""
+	} else {
+		s := ""
+		for _, order := range ob.orders {
+			s += fmt.Sprintf("	%+v\n", order)
+		}
+		return s
+	}
+
 }
 
 func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
