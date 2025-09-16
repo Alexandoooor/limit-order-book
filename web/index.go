@@ -7,6 +7,18 @@ import (
 	"strings"
 )
 
+type LevelView struct {
+	Price  int
+	Volume int
+}
+
+type OrderBookView struct {
+	Bids     []LevelView
+	Asks     []LevelView
+	Hostname string
+}
+
+
 var indexTmpl = template.Must(template.New("index").Parse(IndexHTML))
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {

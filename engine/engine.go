@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"os"
 	"time"
+	"limit-order-book/web"
 )
 
 type Side int
@@ -27,6 +28,7 @@ type OrderBook struct {
 	orders     map[uuid.UUID]*Order
 	lowestAsk  *Level
 	highestBid *Level
+	trades	   []Trade
 }
 
 type Order struct {
@@ -50,30 +52,27 @@ type Level struct {
 	tailOrder *Order
 }
 
-type LevelView struct {
-	Price  int
-	Volume int
+type Trade struct {
+	Price    int       `json:"price"`
+	Size     int       `json:"size"`
+	Time     time.Time `json:"time"`
+	BuyerID  uuid.UUID `json:"buyerId"`
+	SellerID uuid.UUID `json:"sellerId"`
 }
 
-type OrderBookView struct {
-	Bids     []LevelView
-	Asks     []LevelView
-	Hostname string
-}
-
-func (ob *OrderBook) BuildOrderBookView() OrderBookView {
-	view := OrderBookView{}
+func (ob *OrderBook) BuildOrderBookView() web.OrderBookView {
+	view := web.OrderBookView{}
 
 	// Build bids list (highest first)
 	for price, level := range ob.bids {
-		view.Bids = append(view.Bids, LevelView{
+		view.Bids = append(view.Bids, web.LevelView{
 			Price: price,
 			Volume: level.volume,
 		})
 	}
 
 	for price, level := range ob.asks {
-		view.Asks = append(view.Asks, LevelView{
+		view.Asks = append(view.Asks, web.LevelView{
 			Price: price,
 			Volume: level.volume,
 		})
@@ -204,145 +203,6 @@ func (ob *OrderBook) AddOrder(id uuid.UUID, side Side, price int, size int, rema
 
 }
 
-// func (ob *OrderBook) AddOrder(id uuid.UUID, side Side, price int, size int, remaining int) uuid.UUID {
-// 	order := &Order{
-// 		id:        id,
-// 		side:      side,
-// 		size:      size,
-// 		remaining: remaining,
-// 		price:     price,
-// 		time:      time.Now(),
-// 	}
-//
-// 	ob.orders[id] = order
-//
-// 	var levels map[int]*Level
-// 	if side == Buy {
-// 		levels = ob.bids
-// 	} else {
-// 		levels = ob.asks
-// 	}
-//
-// 	level, exists := levels[price]
-// 	if !exists {
-// 		level = &Level{
-// 			price:  price,
-// 			volume: 0,
-// 			count:  0,
-// 		}
-// 		levels[price] = level
-// 		ob.insertLevel(level, side)
-// 	}
-//
-// 	// Add order to level
-// 	if level.headOrder == nil {
-// 		level.headOrder = order
-// 		level.tailOrder = order
-// 	} else {
-// 		level.tailOrder.nextOrder = order
-// 		order.prevOrder = level.tailOrder
-// 		level.tailOrder = order
-// 	}
-//
-// 	order.parentLevel = level
-// 	level.volume += remaining
-// 	level.count++
-//
-// 	return id
-// }
-
-// func (ob *OrderBook) insertLevel(level *Level, side Side) {
-// 	if side == Buy {
-// 		if ob.highestBid == nil || level.price > ob.highestBid.price {
-// 			level.nextLevel = ob.highestBid
-// 			ob.highestBid = level
-// 		} else {
-// 			// Insert in correct position
-// 			current := ob.highestBid
-// 			for current.nextLevel != nil && current.nextLevel.price > level.price {
-// 				current = current.nextLevel
-// 			}
-// 			level.nextLevel = current.nextLevel
-// 			current.nextLevel = level
-// 		}
-// 	} else {
-// 		if ob.lowestAsk == nil || level.price < ob.lowestAsk.price {
-// 			level.nextLevel = ob.lowestAsk
-// 			ob.lowestAsk = level
-// 		} else {
-// 			// Insert in correct position
-// 			current := ob.lowestAsk
-// 			for current.nextLevel != nil && current.nextLevel.price < level.price {
-// 				current = current.nextLevel
-// 			}
-// 			level.nextLevel = current.nextLevel
-// 			current.nextLevel = level
-// 		}
-// 	}
-// }
-
-// func (ob *OrderBook) RemoveOrder(order Order) *Order {
-// 	storedOrder, exists := ob.orders[order.id]
-// 	if !exists {
-// 		return nil
-// 	}
-//
-// 	// Remove from level
-// 	level := storedOrder.parentLevel
-// 	if storedOrder.prevOrder != nil {
-// 		storedOrder.prevOrder.nextOrder = storedOrder.nextOrder
-// 	} else {
-// 		level.headOrder = storedOrder.nextOrder
-// 	}
-//
-// 	if storedOrder.nextOrder != nil {
-// 		storedOrder.nextOrder.prevOrder = storedOrder.prevOrder
-// 	} else {
-// 		level.tailOrder = storedOrder.prevOrder
-// 	}
-//
-// 	level.volume -= storedOrder.remaining
-// 	level.count--
-//
-// 	// Remove level if empty
-// 	if level.count == 0 {
-// 		ob.removeLevel(level, storedOrder.side)
-// 	}
-//
-// 	delete(ob.orders, order.id)
-// 	return storedOrder
-// }
-//
-// func (ob *OrderBook) removeLevel(level *Level, side Side) {
-// 	if side == Buy {
-// 		if ob.highestBid == level {
-// 			ob.highestBid = level.nextLevel
-// 		} else {
-// 			current := ob.highestBid
-// 			for current != nil && current.nextLevel != level {
-// 				current = current.nextLevel
-// 			}
-// 			if current != nil {
-// 				current.nextLevel = level.nextLevel
-// 			}
-// 		}
-// 		delete(ob.bids, level.price)
-// 	} else {
-// 		if ob.lowestAsk == level {
-// 			ob.lowestAsk = level.nextLevel
-// 		} else {
-// 			current := ob.lowestAsk
-// 			for current != nil && current.nextLevel != level {
-// 				current = current.nextLevel
-// 			}
-// 			if current != nil {
-// 				current.nextLevel = level.nextLevel
-// 			}
-// 		}
-// 		delete(ob.asks, level.price)
-// 	}
-// }
-
 func (ob *OrderBook) RemoveOrder(order Order) *Order {
 	delete(ob.orders, order.id)
 	parentLevel := order.parentLevel
@@ -380,13 +240,14 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 
 }
 
-func (ob *OrderBook) ProcessOrder(side Side, price int, size int) uuid.UUID {
-	orderId := uuid.New()
-	remaining := size
+func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incomingSize int) uuid.UUID {
+	incomingOrderId := uuid.New()
+	remaining := incomingSize
+	trades := []Trade{}
 	var isOrderBetterThanBestLevel func(int, int) bool
 	var currentBestLevel *Level
 
-	if side == Buy {
+	if incomingSide == Buy {
 		isOrderBetterThanBestLevel = func(order int, currentBestLevel int) bool {
 			return order >= currentBestLevel
 		}
@@ -401,16 +262,16 @@ func (ob *OrderBook) ProcessOrder(side Side, price int, size int) uuid.UUID {
 	}
 
 	if currentBestLevel == nil {
-		ob.AddOrder(orderId, side, price, size, remaining)
+		ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, remaining)
 	} else {
 		var currentLevel *Level
 		for true {
-			if side == Buy {
+			if incomingSide == Buy {
 				currentLevel = ob.lowestAsk
 			} else {
 				currentLevel = ob.highestBid
 			}
-			if currentLevel == nil || !isOrderBetterThanBestLevel(price, currentLevel.price) {
+			if currentLevel == nil || !isOrderBetterThanBestLevel(incomingPrice, currentLevel.price) {
 				break
 			}
 			// existingOrder: An order already in the book and a candidate to be executed
@@ -420,6 +281,26 @@ func (ob *OrderBook) ProcessOrder(side Side, price int, size int) uuid.UUID {
 				if existingOrder.remaining <= remaining {
 					// If the candidate order in the book has <= remaining size than the size of the
 					// incoming order, it will be filled and thus removed from the order book
+					var trade Trade
+					if incomingSide == Buy {
+						trade = Trade{
+							Price: incomingPrice,
+							Size: existingOrder.remaining,
+							Time: time.Now().UTC(),
+							BuyerID: incomingOrderId,
+							SellerID: existingOrder.id,
+						}
+					} else {
+						trade = Trade{
+							Price: incomingPrice,
+							Size: existingOrder.remaining,
+							Time: time.Now().UTC(),
+							BuyerID: existingOrder.id,
+							SellerID: incomingOrderId,
+						}
+					}
+					trades = append(trades, trade)
+					fmt.Printf("Trades{%+v}", ob.trades)
 					remaining -= existingOrder.remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
 				} else {
@@ -432,7 +313,7 @@ func (ob *OrderBook) ProcessOrder(side Side, price int, size int) uuid.UUID {
 			}
 
 			if currentLevel.count == 0 {
-				if side == Buy {
+				if incomingSide == Buy {
 					delete(ob.asks, currentLevel.price)
 					ob.lowestAsk = currentLevel.nextLevel
 					currentLevel = ob.lowestAsk
@@ -449,10 +330,11 @@ func (ob *OrderBook) ProcessOrder(side Side, price int, size int) uuid.UUID {
 		}
 
 		if remaining > 0 {
-			ob.AddOrder(orderId, side, price, size, remaining)
+			ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, remaining)
 		}
 	}
-	return orderId
+	ob.trades = append(ob.trades, trades...)
+	return incomingOrderId
 }
 
 func (o Order) Equals(other Order) bool {

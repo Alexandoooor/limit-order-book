@@ -14,7 +14,7 @@ var (
 )
 
 func main() {
-	logger := log.New(os.Stdout, "LOB: ", log.LstdFlags | log.Lshortfile)
+	logger := log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
 
 	flag.Parse()
 	ob := engine.NewOrderBook()

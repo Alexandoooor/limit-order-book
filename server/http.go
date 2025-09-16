@@ -63,9 +63,7 @@ func Serve(addr string, ob *engine.OrderBook, logger *log.Logger) error {
 		}
 		defer r.Body.Close()
 
-		// Trim whitespace to avoid hidden CR/LF issues
 		body = bytes.TrimSpace(body)
-
 
 		var req PlaceOrderRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -89,7 +87,6 @@ func Serve(addr string, ob *engine.OrderBook, logger *log.Logger) error {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(order)
 
-		// orderBook := ob.String()
 		logger.Println(ob)
 		logger.Println(ob.GetLevel(side, req.Price))
 	})
