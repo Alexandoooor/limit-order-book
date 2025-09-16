@@ -244,7 +244,6 @@ func TestProcessPartialOrder(t *testing.T) {
 
 	o0 := ob.orders[id0]
 	o1 := ob.orders[id1]
-	// ob.PrintOrderBook()
 
 	expectedRemaining := 1
 	if o1.remaining != expectedRemaining {

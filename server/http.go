@@ -9,7 +9,9 @@ import (
 	"limit-order-book/engine"
 	"limit-order-book/web"
 	"net/http"
+	"log"
 )
+
 
 func hello(w http.ResponseWriter, req *http.Request) {
 
@@ -31,11 +33,12 @@ type PlaceOrderRequest struct {
 	Size  int	`json:"size"`
 }
 
-func Serve(addr string, ob *engine.OrderBook) error {
+func Serve(addr string, ob *engine.OrderBook, logger *log.Logger) error {
+    	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		view := ob.BuildOrderBookView()
-
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
 
@@ -44,7 +47,7 @@ func Serve(addr string, ob *engine.OrderBook) error {
 	http.HandleFunc("/headers", headers)
 
 	http.HandleFunc("/ob", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, ob.FormatOrderBook())
+		fmt.Fprintf(w, ob.String())
 	})
 
 	http.HandleFunc("/api/order", func(w http.ResponseWriter, r *http.Request) {
@@ -71,25 +74,24 @@ func Serve(addr string, ob *engine.OrderBook) error {
 		}
 
 		var side engine.Side
-		if req.Side == "buy" {
+		switch req.Side {
+		case "buy":
 			side = engine.Buy
-		} else if req.Side == "sell" {
+		case "sell":
 			side = engine.Sell
-		} else {
+		default:
 			http.Error(w, "Invalid side, use 'buy' or 'sell'", http.StatusBadRequest)
 			return
 		}
-
-		ob.Mu.Lock()
-		defer ob.Mu.Unlock()
 
 		order := ob.ProcessOrder(side, req.Price, req.Size)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(order)
 
-		ob.PrintOrderBook()
-		fmt.Printf("Level: %+v\n", ob.GetLevel(side, req.Price))
+		// orderBook := ob.String()
+		logger.Println(ob)
+		logger.Println(ob.GetLevel(side, req.Price))
 	})
 
 	return http.ListenAndServe(addr, nil)
