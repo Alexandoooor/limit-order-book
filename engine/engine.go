@@ -243,7 +243,6 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incomingSize int) uuid.UUID {
 	incomingOrderId := uuid.New()
 	remaining := incomingSize
-	trades := []Trade{}
 	var isOrderBetterThanBestLevel func(int, int) bool
 	var currentBestLevel *Level
 
@@ -299,8 +298,8 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 							SellerID: incomingOrderId,
 						}
 					}
-					trades = append(trades, trade)
-					fmt.Printf("Trades{%+v}", ob.trades)
+					ob.trades = append(ob.trades, trade)
+					fmt.Println(ob.GetTrades())
 					remaining -= existingOrder.remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
 				} else {
@@ -333,8 +332,16 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 			ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, remaining)
 		}
 	}
-	ob.trades = append(ob.trades, trades...)
 	return incomingOrderId
+}
+
+func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
+	order := ob.orders[id]
+	if order == nil {
+		return false
+	}
+	ob.RemoveOrder(*order)
+	return true
 }
 
 func (o Order) Equals(other Order) bool {
@@ -358,21 +365,25 @@ func (ob *OrderBook) GetOrderBook() string {
 
 }
 
-func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
-	order := ob.orders[id]
-	if order == nil {
-		return false
-	}
-	ob.RemoveOrder(*order)
-	return true
-}
-
 func (ob *OrderBook) String() string {
 	if len(ob.orders) == 0 {
 		return "OrderBook{}"
 	} else {
 		s := "OrderBook{\n"
 		s += ob.GetOrderBook()
+		s += "}\n"
+		return s
+	}
+}
+
+func (ob *OrderBook) GetTrades() string {
+	if len(ob.trades) == 0 {
+		return "Trades{}"
+	} else {
+		s := "Trades{\n"
+		for _, trade := range ob.trades {
+			s += fmt.Sprintf("	%+v\n", trade)
+		}
 		s += "}\n"
 		return s
 	}
@@ -403,6 +414,17 @@ func (l *Level) String() string {
 		l.nextLevel,
 		l.headOrder,
 		l.tailOrder,
+	)
+}
+
+func (t *Trade) String() string {
+	return fmt.Sprintf(
+		"Trade{\n\tprice: %d\n\tsize: %d\n\ttime: %s\n\tbuyerId: %s\n\tsellerId: %s\n\t}\n",
+		t.Price,
+		t.Size,
+		t.Time.Format(time.RFC3339Nano),
+		t.BuyerID,
+		t.SellerID,
 	)
 }
 
