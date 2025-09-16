@@ -1,11 +1,11 @@
 package engine
 
 import (
-	"time"
 	"fmt"
-    	"github.com/google/uuid"
-	"sync"
+	"github.com/google/uuid"
 	"os"
+	"sync"
+	"time"
 )
 
 type Side int
@@ -23,45 +23,43 @@ func (s Side) String() string {
 }
 
 type OrderBook struct {
-	bids		map[int]*Level
-	asks		map[int]*Level
-	orders		map[uuid.UUID]*Order
-	lowestAsk	*Level
-	highestBid	*Level
-	Mu 		sync.Mutex
+	bids       map[int]*Level
+	asks       map[int]*Level
+	orders     map[uuid.UUID]*Order
+	lowestAsk  *Level
+	highestBid *Level
+	Mu         sync.Mutex
 }
 
 type Order struct {
-	id 		uuid.UUID
-	side 		Side
-	size		int
-	remaining	int
-	price		int
-	time 		time.Time
-	nextOrder	*Order
-	prevOrder	*Order
-	parentLevel	*Level
+	id          uuid.UUID
+	side        Side
+	size        int
+	remaining   int
+	price       int
+	time        time.Time
+	nextOrder   *Order
+	prevOrder   *Order
+	parentLevel *Level
 }
 
 type Level struct {
-	price 		int
-	volume 		int
-	count		int
-	nextLevel	*Level
-	headOrder	*Order
-	tailOrder	*Order
+	price     int
+	volume    int
+	count     int
+	nextLevel *Level
+	headOrder *Order
+	tailOrder *Order
 }
 
-// For template rendering
 type LevelView struct {
 	Price  int
 	Volume int
-	Count  int
 }
 
 type OrderBookView struct {
-	Bids []LevelView
-	Asks []LevelView
+	Bids     []LevelView
+	Asks     []LevelView
 	Hostname string
 }
 
@@ -69,20 +67,34 @@ func (ob *OrderBook) BuildOrderBookView() OrderBookView {
 	view := OrderBookView{}
 
 	// Build bids list (highest first)
-	for lvl := ob.highestBid; lvl != nil; lvl = lvl.nextLevel {
+	for price, level := range ob.bids {
 		view.Bids = append(view.Bids, LevelView{
-			Price:  lvl.price,
-			Volume: lvl.volume,
+			Price: price,
+			Volume: level.volume,
 		})
 	}
 
-	// Build asks list (lowest first)
-	for lvl := ob.lowestAsk; lvl != nil; lvl = lvl.nextLevel {
+	for price, level := range ob.asks {
 		view.Asks = append(view.Asks, LevelView{
-			Price:  lvl.price,
-			Volume: lvl.volume,
+			Price: price,
+			Volume: level.volume,
 		})
 	}
+
+	// for lvl := ob.highestBid; lvl != nil; lvl = lvl.nextLevel {
+	// 	view.Bids = append(view.Bids, LevelView{
+	// 		Price:  lvl.price,
+	// 		Volume: lvl.volume,
+	// 	})
+	// }
+	//
+	// // Build asks list (lowest first)
+	// for lvl := ob.lowestAsk; lvl != nil; lvl = lvl.nextLevel {
+	// 	view.Asks = append(view.Asks, LevelView{
+	// 		Price:  lvl.price,
+	// 		Volume: lvl.volume,
+	// 	})
+	// }
 
 	hostname := os.Getenv("HOSTNAME")
 	if hostname == "" {
@@ -91,16 +103,15 @@ func (ob *OrderBook) BuildOrderBookView() OrderBookView {
 
 	view.Hostname = hostname
 
-
 	return view
 }
 
 func NewOrderBook() *OrderBook {
 	ob := &OrderBook{
-		bids: make(map[int]*Level),
-		asks: make(map[int]*Level),
-		orders: make(map[uuid.UUID]*Order),
-		lowestAsk: nil,
+		bids:       make(map[int]*Level),
+		asks:       make(map[int]*Level),
+		orders:     make(map[uuid.UUID]*Order),
+		lowestAsk:  nil,
 		highestBid: nil,
 	}
 	return ob
@@ -108,9 +119,9 @@ func NewOrderBook() *OrderBook {
 
 func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	newLevel := &Level{
-		price: order.price,
-		volume: order.size,
-		count: 1,
+		price:     order.price,
+		volume:    order.size,
+		count:     1,
 		nextLevel: nil,
 		headOrder: order,
 		tailOrder: order,
@@ -126,13 +137,13 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 		// If there is no highestBid yet, i.e no bids at all
 		if ob.highestBid == nil {
 			ob.highestBid = newLevel
-		// If the highestBid is lower than the new level,
-		// Set newLevel.nextLevel to highestBid and the highestBid to the current level
+			// If the highestBid is lower than the new level,
+			// Set newLevel.nextLevel to highestBid and the highestBid to the current level
 		} else if newLevel.price > ob.highestBid.price {
 			newLevel.nextLevel = ob.highestBid
 			ob.highestBid = newLevel
-		// Otherwise we need to traverse the pre-existing levels,
-		// to find where the new one fits in.
+			// Otherwise we need to traverse the pre-existing levels,
+			// to find where the new one fits in.
 		} else {
 			currentBid := ob.highestBid
 			for currentBid.nextLevel != nil && newLevel.price < currentBid.nextLevel.price {
@@ -147,7 +158,7 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	case Sell:
 		if ob.lowestAsk == nil {
 			ob.lowestAsk = newLevel
-		} else if newLevel.price < ob.lowestAsk.price  {
+		} else if newLevel.price < ob.lowestAsk.price {
 			newLevel.nextLevel = ob.lowestAsk
 			ob.lowestAsk = newLevel
 		} else {
@@ -163,104 +174,243 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	return newLevel
 }
 
+// func (ob *OrderBook) AddOrder(id uuid.UUID, side Side, price int, size int, remaining int) uuid.UUID {
+// 	newOrder := Order{
+// 		id:          id,
+// 		side:        side,
+// 		size:        size,
+// 		remaining:   remaining,
+// 		price:       price,
+// 		time:        time.Now().UTC(),
+// 		nextOrder:   nil,
+// 		prevOrder:   nil,
+// 		parentLevel: nil,
+// 	}
+// 	switch side {
+// 	case Buy:
+// 		if ob.bids[price] != nil {
+// 			level := ob.bids[price]
+// 			newOrder.parentLevel = level
+// 			newOrder.prevOrder = level.tailOrder
+// 			level.tailOrder.nextOrder = &newOrder
+// 			level.tailOrder = &newOrder
+// 			level.volume += newOrder.remaining
+// 			level.count++
+//
+// 		} else {
+// 			level := ob.NewLevel(&newOrder, side)
+// 			ob.bids[level.price] = level
+// 		}
+// 	case Sell:
+// 		if ob.asks[price] != nil {
+// 			level := ob.asks[price]
+// 			newOrder.parentLevel = level
+// 			newOrder.prevOrder = level.tailOrder
+// 			level.tailOrder.nextOrder = &newOrder
+// 			level.tailOrder = &newOrder
+// 			level.volume += newOrder.remaining
+// 			level.count++
+// 		} else {
+// 			level := ob.NewLevel(&newOrder, side)
+// 			ob.asks[level.price] = level
+// 		}
+// 	}
+//
+// 	ob.orders[newOrder.id] = &newOrder
+// 	return newOrder.id
+//
+// }
+
 func (ob *OrderBook) AddOrder(id uuid.UUID, side Side, price int, size int, remaining int) uuid.UUID {
-	newOrder := Order{
-		id: 	id,
-		side: 	side,
-		size:	size,
+	order := &Order{
+		id:        id,
+		side:      side,
+		size:      size,
 		remaining: remaining,
-		price: price,
-		time: time.Now().UTC(),
-		nextOrder: nil,
-		prevOrder: nil,
-		parentLevel: nil,
-	}
-	switch side {
-	case Buy:
-		if ob.bids[price] != nil {
-			level := ob.bids[price]
-			newOrder.parentLevel = level
-			newOrder.prevOrder = level.tailOrder
-			level.tailOrder.nextOrder = &newOrder
-			level.tailOrder = &newOrder
-			level.volume += newOrder.remaining
-			level.count++
-
-		} else {
-			level := ob.NewLevel(&newOrder, side)
-			ob.bids[level.price] = level
-		}
-	case Sell:
-		if ob.asks[price] != nil {
-			level := ob.asks[price]
-			newOrder.parentLevel = level
-			newOrder.prevOrder = level.tailOrder
-			level.tailOrder.nextOrder = &newOrder
-			level.tailOrder = &newOrder
-			level.volume += newOrder.remaining
-			level.count++
-		} else {
-			level := ob.NewLevel(&newOrder, side)
-			ob.asks[level.price] = level
-		}
+		price:     price,
+		time:      time.Now(),
 	}
 
-	ob.orders[newOrder.id] = &newOrder
-	return newOrder.id
+	ob.orders[id] = order
 
+	var levels map[int]*Level
+	if side == Buy {
+		levels = ob.bids
+	} else {
+		levels = ob.asks
+	}
+
+	level, exists := levels[price]
+	if !exists {
+		level = &Level{
+			price:  price,
+			volume: 0,
+			count:  0,
+		}
+		levels[price] = level
+		ob.insertLevel(level, side)
+	}
+
+	// Add order to level
+	if level.headOrder == nil {
+		level.headOrder = order
+		level.tailOrder = order
+	} else {
+		level.tailOrder.nextOrder = order
+		order.prevOrder = level.tailOrder
+		level.tailOrder = order
+	}
+
+	order.parentLevel = level
+	level.volume += remaining
+	level.count++
+
+	return id
+}
+
+func (ob *OrderBook) insertLevel(level *Level, side Side) {
+	if side == Buy {
+		if ob.highestBid == nil || level.price > ob.highestBid.price {
+			level.nextLevel = ob.highestBid
+			ob.highestBid = level
+		} else {
+			// Insert in correct position
+			current := ob.highestBid
+			for current.nextLevel != nil && current.nextLevel.price > level.price {
+				current = current.nextLevel
+			}
+			level.nextLevel = current.nextLevel
+			current.nextLevel = level
+		}
+	} else {
+		if ob.lowestAsk == nil || level.price < ob.lowestAsk.price {
+			level.nextLevel = ob.lowestAsk
+			ob.lowestAsk = level
+		} else {
+			// Insert in correct position
+			current := ob.lowestAsk
+			for current.nextLevel != nil && current.nextLevel.price < level.price {
+				current = current.nextLevel
+			}
+			level.nextLevel = current.nextLevel
+			current.nextLevel = level
+		}
+	}
 }
 
 func (ob *OrderBook) RemoveOrder(order Order) *Order {
-	delete(ob.orders, order.id)
-	parentLevel := order.parentLevel
-	parentLevel.volume -= order.remaining
-	parentLevel.count--
-
-	if parentLevel.count > 0 {
-		if parentLevel.headOrder.id == order.id {
-			parentLevel.headOrder = order.nextOrder
-		} else if parentLevel.tailOrder.id == order.id {
-			parentLevel.tailOrder = order.prevOrder
-		} else {
-			// A - B - C => A - C
-			A := order.prevOrder
-			C := order.nextOrder
-			A.nextOrder = C
-			C.prevOrder = A
-		}
-		return parentLevel.headOrder
-	} else {
-		if order.side == Buy {
-			delete(ob.bids, order.parentLevel.price)
-			if ob.highestBid == parentLevel {
-				ob.highestBid = parentLevel.nextLevel
-			}
-		} else {
-			delete(ob.asks, order.parentLevel.price)
-			if ob.lowestAsk == parentLevel {
-				ob.lowestAsk = parentLevel.nextLevel
-			}
-
-		}
+	storedOrder, exists := ob.orders[order.id]
+	if !exists {
+		return nil
 	}
-	return nil
 
+	// Remove from level
+	level := storedOrder.parentLevel
+	if storedOrder.prevOrder != nil {
+		storedOrder.prevOrder.nextOrder = storedOrder.nextOrder
+	} else {
+		level.headOrder = storedOrder.nextOrder
+	}
+
+	if storedOrder.nextOrder != nil {
+		storedOrder.nextOrder.prevOrder = storedOrder.prevOrder
+	} else {
+		level.tailOrder = storedOrder.prevOrder
+	}
+
+	level.volume -= storedOrder.remaining
+	level.count--
+
+	// Remove level if empty
+	if level.count == 0 {
+		ob.removeLevel(level, storedOrder.side)
+	}
+
+	delete(ob.orders, order.id)
+	return storedOrder
 }
+
+func (ob *OrderBook) removeLevel(level *Level, side Side) {
+	if side == Buy {
+		if ob.highestBid == level {
+			ob.highestBid = level.nextLevel
+		} else {
+			current := ob.highestBid
+			for current != nil && current.nextLevel != level {
+				current = current.nextLevel
+			}
+			if current != nil {
+				current.nextLevel = level.nextLevel
+			}
+		}
+		delete(ob.bids, level.price)
+	} else {
+		if ob.lowestAsk == level {
+			ob.lowestAsk = level.nextLevel
+		} else {
+			current := ob.lowestAsk
+			for current != nil && current.nextLevel != level {
+				current = current.nextLevel
+			}
+			if current != nil {
+				current.nextLevel = level.nextLevel
+			}
+		}
+		delete(ob.asks, level.price)
+	}
+}
+
+// func (ob *OrderBook) RemoveOrder(order Order) *Order {
+// 	delete(ob.orders, order.id)
+// 	parentLevel := order.parentLevel
+// 	parentLevel.volume -= order.remaining
+// 	parentLevel.count--
+//
+// 	if parentLevel.count > 0 {
+// 		if parentLevel.headOrder.id == order.id {
+// 			parentLevel.headOrder = order.nextOrder
+// 		} else if parentLevel.tailOrder.id == order.id {
+// 			parentLevel.tailOrder = order.prevOrder
+// 		} else {
+// 			// A - B - C => A - C
+// 			A := order.prevOrder
+// 			C := order.nextOrder
+// 			A.nextOrder = C
+// 			C.prevOrder = A
+// 		}
+// 		return parentLevel.headOrder
+// 	} else {
+// 		if order.side == Buy {
+// 			delete(ob.bids, order.parentLevel.price)
+// 			if ob.highestBid == parentLevel {
+// 				ob.highestBid = parentLevel.nextLevel
+// 			}
+// 		} else {
+// 			delete(ob.asks, order.parentLevel.price)
+// 			if ob.lowestAsk == parentLevel {
+// 				ob.lowestAsk = parentLevel.nextLevel
+// 			}
+//
+// 		}
+// 	}
+// 	return nil
+//
+// }
 
 func (ob *OrderBook) ProcessOrder(side Side, price int, size int) uuid.UUID {
 	orderId := uuid.New()
 	remaining := size
-	var isOrderBetterThanBestLevel func(int, int)bool
+	var isOrderBetterThanBestLevel func(int, int) bool
 	var currentBestLevel *Level
 
 	if side == Buy {
-		isOrderBetterThanBestLevel = func (order int, currentBestLevel int) bool  {
+		isOrderBetterThanBestLevel = func(order int, currentBestLevel int) bool {
 			return order >= currentBestLevel
 		}
 		// Check if the buy order price is >= the lowestAsk, if it is it can be executed
 		currentBestLevel = ob.lowestAsk
 	} else {
-		isOrderBetterThanBestLevel = func (order int, currentBestLevel int) bool {
+		isOrderBetterThanBestLevel = func(order int, currentBestLevel int) bool {
 			return order <= currentBestLevel
 		}
 		// Check if the sell order price is <= the highestBid, if it is it can be executed
@@ -321,7 +471,6 @@ func (ob *OrderBook) ProcessOrder(side Side, price int, size int) uuid.UUID {
 	return orderId
 }
 
-
 func (o Order) Equals(other Order) bool {
 	return o.id == other.id
 }
@@ -349,7 +498,7 @@ func (ob *OrderBook) FormatOrderBook() string {
 		return "OrderBook{}"
 	} else {
 		s := "OrderBook{"
-			s += ob.GetOrderBook()
+		s += ob.GetOrderBook()
 		s += "}"
 		return s
 	}
@@ -377,7 +526,6 @@ func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
 	return true
 }
 
-
 func (ob *OrderBook) String() string {
 	lowestAskPrice := 0
 	highestBidPrice := 0
@@ -396,6 +544,22 @@ func (ob *OrderBook) String() string {
 	)
 }
 
+func (ob *OrderBook) GetLevel(side Side, price int) *Level {
+	if side == Buy {
+		if ob.bids[price] != nil {
+			return ob.bids[price]
+		} else {
+			return &Level{}
+		}
+	} else {
+		if ob.asks[price] != nil {
+			return ob.asks[price]
+		} else {
+			return &Level{}
+		}
+	}
+}
+
 func (l *Level) String() string {
 	return fmt.Sprintf(
 		"Level{\nprice: %d\nvolume: %d\ncount: %d\nnextLevel: %+v\nheadOrder: %+v\ntailOrder: %+v\n}\n",
@@ -409,29 +573,29 @@ func (l *Level) String() string {
 }
 
 func (o *Order) String() string {
-    var nextID, prevID string
+	var nextID, prevID string
 
-    if o.nextOrder != nil {
-        nextID = o.nextOrder.id.String()
-    } else {
-        nextID = "nil"
-    }
+	if o.nextOrder != nil {
+		nextID = o.nextOrder.id.String()
+	} else {
+		nextID = "nil"
+	}
 
-    if o.prevOrder != nil {
-        prevID = o.prevOrder.id.String()
-    } else {
-        prevID = "nil"
-    }
+	if o.prevOrder != nil {
+		prevID = o.prevOrder.id.String()
+	} else {
+		prevID = "nil"
+	}
 
-    return fmt.Sprintf(
-        "Order{id: %s, side: %s, size: %d, remaining: %d, price: %d, time: %s, nextOrderId: %s, prevOrderId: %s}",
-        o.id.String(),
-        o.side,
-        o.size,
-        o.remaining,
-        o.price,
-        o.time.Format(time.RFC3339Nano),
-        nextID,
-        prevID,
-    )
+	return fmt.Sprintf(
+		"Order{id: %s, side: %s, size: %d, remaining: %d, price: %d, time: %s, nextOrderId: %s, prevOrderId: %s}",
+		o.id.String(),
+		o.side,
+		o.size,
+		o.remaining,
+		o.price,
+		o.time.Format(time.RFC3339Nano),
+		nextID,
+		prevID,
+	)
 }

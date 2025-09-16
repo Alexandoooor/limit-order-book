@@ -1,14 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"limit-order-book/engine"
 	"limit-order-book/web"
 	"net/http"
-	"bytes"
-	"io"
 )
 
 func hello(w http.ResponseWriter, req *http.Request) {
@@ -26,9 +26,9 @@ func headers(w http.ResponseWriter, req *http.Request) {
 }
 
 type PlaceOrderRequest struct {
-	Side  engine.Side `json:"side"`
-	Price int  `json:"price"`
-	Size  int  `json:"size"`
+	Side  string	`json:"side"`
+	Price int	`json:"price"`
+	Size  int	`json:"size"`
 }
 
 func Serve(addr string, ob *engine.OrderBook) error {
@@ -63,21 +63,35 @@ func Serve(addr string, ob *engine.OrderBook) error {
 		// Trim whitespace to avoid hidden CR/LF issues
 		body = bytes.TrimSpace(body)
 
+
 		var req PlaceOrderRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 
+		var side engine.Side
+		if req.Side == "buy" {
+			side = engine.Buy
+		} else if req.Side == "sell" {
+			side = engine.Buy
+		} else {
+			http.Error(w, "Invalid side, use 'buy' or 'sell'", http.StatusBadRequest)
+			return
+		}
+
 		ob.Mu.Lock()
 		defer ob.Mu.Unlock()
 
-		order := ob.ProcessOrder(req.Side, req.Price, req.Size)
+		order := ob.ProcessOrder(side, req.Price, req.Size)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(order)
+
+		ob.PrintOrderBook()
+		fmt.Printf("Level: %+v\n", ob.GetLevel(side, req.Price))
 	})
 
-	return http.ListenAndServe(addr , nil)
+	return http.ListenAndServe(addr, nil)
 
 }

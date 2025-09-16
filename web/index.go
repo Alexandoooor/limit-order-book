@@ -1,10 +1,10 @@
 package web
 
 import (
-    "html/template"
-    "net/http"
-    "os"
-    "strings"
+	"html/template"
+	"net/http"
+	"os"
+	"strings"
 )
 
 var indexTmpl = template.Must(template.New("index").Parse(IndexHTML))

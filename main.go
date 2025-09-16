@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	port   = flag.Int("port", 3000, "HTTP port")
+	port = flag.Int("port", 3000, "HTTP port")
 )
 
 func main() {
