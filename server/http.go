@@ -74,7 +74,7 @@ func Serve(addr string, ob *engine.OrderBook) error {
 		if req.Side == "buy" {
 			side = engine.Buy
 		} else if req.Side == "sell" {
-			side = engine.Buy
+			side = engine.Sell
 		} else {
 			http.Error(w, "Invalid side, use 'buy' or 'sell'", http.StatusBadRequest)
 			return

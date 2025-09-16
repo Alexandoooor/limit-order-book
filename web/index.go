@@ -61,8 +61,8 @@ const IndexHTML = `<!doctype html>
 	<form id="orderForm">
 		<label>Side:</label>
 		<select id="side" name="side">
-			<option value="0">Buy</option>
-			<option value="1">Sell</option>
+			<option value="buy">Buy</option>
+			<option value="sell">Sell</option>
 		</select><br>
 		<label>Price:</label>
 		<input type="number" id="price" name="price" required><br>
@@ -105,7 +105,7 @@ const IndexHTML = `<!doctype html>
 		const form = document.getElementById('orderForm');
 		form.addEventListener('submit', async (e) => {
 			e.preventDefault();
-			const side = parseInt(document.getElementById('side').value);
+			const side = document.getElementById('side').value;
 			const price = parseInt(document.getElementById('price').value);
 			const size = parseInt(document.getElementById('size').value);
 
