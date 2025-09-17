@@ -139,18 +139,54 @@ const IndexHTML = `<!doctype html>
 
 	<h2>Place Order</h2>
 	<div class="row">
-	<form id="orderForm">
-		<label>Side:</label>
-		<select id="side" name="side">
-			<option value="buy">Buy</option>
-			<option value="sell">Sell</option>
-		</select><br>
-		<label>Price:</label>
-		<input type="number" id="price" name="price" required><br>
-		<label>Size:</label>
-		<input type="number" id="size" name="size" required><br>
-        	<button type="submit" id="submitBtn" class="submit buy order-type buy">Place Order</button>
-	</form>
+
+    <form id="orderForm" novalidate>
+      <div>
+        <label for="side">Side</label>
+<div class="row" role="radiogroup" aria-label="Order side">
+  <label class="order-type buy" id="buyOption">
+    <input type="radio" name="side" value="buy" id="sideBuy" checked aria-checked="true">
+    <span aria-hidden>▲</span>
+    <span style="min-width:40px;">Buy</span>
+    <small class="hint">(take the bid)</small>
+  </label>
+
+  <label class="order-type sell" id="sellOption">
+    <input type="radio" name="side" value="sell" id="sideSell" aria-checked="false">
+    <span aria-hidden>▼</span>
+    <span style="min-width:40px;">Sell</span>
+    <small class="hint">(hit the ask)</small>
+  </label>
+</div>
+      </div>
+
+      <div class="side-by-side">
+        <div>
+          <label for="price">Price</label>
+          <div class="price-row">
+            <input id="price" name="price" type="number" inputmode="decimal" step="0.0001" min="0" placeholder="0.0000" aria-describedby="priceHelp" required>
+            <div class="currency" id="priceHelp">USD</div>
+          </div>
+        </div>
+
+        <div>
+          <label for="size">Size</label>
+          <input id="size" name="size" type="number" inputmode="decimal" step="0.0001" min="0" placeholder="0.0000" aria-describedby="sizeHelp" required>
+          <div class="hint" id="sizeHelp">Base asset</div>
+        </div>
+      </div>
+
+      <div class="meta" aria-live="polite">
+        <div class="hint">Estimated Total</div>
+        <div class="total" id="total">—</div>
+      </div>
+
+      <div>
+        <button type="submit" id="submitBtn" class="submit buy order-type buy">Place Buy Order</button>
+      </div>
+
+      <div style="margin-top:8px;" class="hint">Press enter to submit. Values are validated client-side only.</div>
+    </form>
 	</div>
 
 	<div class="column">
@@ -201,10 +237,20 @@ const IndexHTML = `<!doctype html>
 	</div>
 
 	<script>
+
+		const radios = document.querySelectorAll('input[name="side"]');
+		radios.forEach(radio => {
+			radio.addEventListener('change', () => {
+				radios.forEach(r => r.setAttribute('aria-checked', r.checked));
+				console.log("Selected side:", document.querySelector('input[name="side"]:checked').value);
+			});
+		});
 		const form = document.getElementById('orderForm');
 		form.addEventListener('submit', async (e) => {
 			e.preventDefault();
-			const side = document.getElementById('side').value;
+
+			const side = document.querySelector('input[name="side"]:checked').value;
+			// const side = document.getElementById('side').value;
 			const price = parseInt(document.getElementById('price').value);
 			const size = parseInt(document.getElementById('size').value);
 
