@@ -5,7 +5,7 @@ import (
 	"github.com/google/uuid"
 	"os"
 	"time"
-	"limit-order-book/web"
+	"log"
 )
 
 type Side int
@@ -23,6 +23,7 @@ func (s Side) String() string {
 }
 
 type OrderBook struct {
+	logger     *log.Logger
 	bids       map[int]*Level
 	asks       map[int]*Level
 	orders     map[uuid.UUID]*Order
@@ -60,23 +61,48 @@ type Trade struct {
 	SellerID uuid.UUID `json:"sellerId"`
 }
 
-func (ob *OrderBook) BuildOrderBookView() web.OrderBookView {
-	view := web.OrderBookView{}
+type LevelView struct {
+	Price  int
+	Volume int
+}
 
-	// Build bids list (highest first)
+type OrderBookView struct {
+	Bids     []LevelView
+	Asks     []LevelView
+	Trades   []Trade
+	Hostname string
+}
+
+func NewOrderBook(logger *log.Logger) *OrderBook {
+	ob := &OrderBook{
+		logger:     logger,
+		bids:       make(map[int]*Level),
+		asks:       make(map[int]*Level),
+		orders:     make(map[uuid.UUID]*Order),
+		lowestAsk:  nil,
+		highestBid: nil,
+	}
+	return ob
+}
+
+func (ob *OrderBook) BuildOrderBookView() OrderBookView {
+	view := OrderBookView{}
+
 	for price, level := range ob.bids {
-		view.Bids = append(view.Bids, web.LevelView{
+		view.Bids = append(view.Bids, LevelView{
 			Price: price,
 			Volume: level.volume,
 		})
 	}
 
 	for price, level := range ob.asks {
-		view.Asks = append(view.Asks, web.LevelView{
+		view.Asks = append(view.Asks, LevelView{
 			Price: price,
 			Volume: level.volume,
 		})
 	}
+
+	view.Trades = ob.trades
 
 	hostname := os.Getenv("HOSTNAME")
 	if hostname == "" {
@@ -86,17 +112,6 @@ func (ob *OrderBook) BuildOrderBookView() web.OrderBookView {
 	view.Hostname = hostname
 
 	return view
-}
-
-func NewOrderBook() *OrderBook {
-	ob := &OrderBook{
-		bids:       make(map[int]*Level),
-		asks:       make(map[int]*Level),
-		orders:     make(map[uuid.UUID]*Order),
-		lowestAsk:  nil,
-		highestBid: nil,
-	}
-	return ob
 }
 
 func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
@@ -242,7 +257,7 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 
 func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incomingSize int) uuid.UUID {
 	incomingOrderId := uuid.New()
-	remaining := incomingSize
+	incomingRemaining := incomingSize
 	var isOrderBetterThanBestLevel func(int, int) bool
 	var currentBestLevel *Level
 
@@ -261,7 +276,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 	}
 
 	if currentBestLevel == nil {
-		ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, remaining)
+		ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
 	} else {
 		var currentLevel *Level
 		for true {
@@ -276,8 +291,8 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 			// existingOrder: An order already in the book and a candidate to be executed
 			// against an incoming order
 			existingOrder := currentLevel.headOrder
-			for existingOrder != nil && remaining > 0 {
-				if existingOrder.remaining <= remaining {
+			for existingOrder != nil && incomingRemaining > 0 {
+				if existingOrder.remaining <= incomingRemaining {
 					// If the candidate order in the book has <= remaining size than the size of the
 					// incoming order, it will be filled and thus removed from the order book
 					var trade Trade
@@ -299,15 +314,37 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 						}
 					}
 					ob.trades = append(ob.trades, trade)
-					fmt.Println(ob.GetTrades())
-					remaining -= existingOrder.remaining
+					ob.logger.Println(ob.GetTrades())
+
+					incomingRemaining -= existingOrder.remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
 				} else {
+					var trade Trade
+					if incomingSide == Buy {
+						trade = Trade{
+							Price: incomingPrice,
+							Size: incomingRemaining,
+							Time: time.Now().UTC(),
+							BuyerID: incomingOrderId,
+							SellerID: existingOrder.id,
+						}
+					} else {
+						trade = Trade{
+							Price: incomingPrice,
+							Size: incomingRemaining,
+							Time: time.Now().UTC(),
+							BuyerID: existingOrder.id,
+							SellerID: incomingOrderId,
+						}
+					}
+					ob.trades = append(ob.trades, trade)
+					ob.logger.Println(ob.GetTrades())
+
 					// Otherwise the incoming order will be fully processed and the remaining
 					// size of the existing order will remain in the book
-					existingOrder.parentLevel.volume -= remaining
-					existingOrder.remaining -= remaining
-					remaining = 0
+					existingOrder.parentLevel.volume -= incomingRemaining
+					existingOrder.remaining -= incomingRemaining
+					incomingRemaining = 0
 				}
 			}
 
@@ -323,13 +360,13 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 				}
 			}
 
-			if remaining == 0 {
+			if incomingRemaining == 0 {
 				break
 			}
 		}
 
-		if remaining > 0 {
-			ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, remaining)
+		if incomingRemaining > 0 {
+			ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
 		}
 	}
 	return incomingOrderId

@@ -17,10 +17,10 @@ func main() {
 	logger := log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
 
 	flag.Parse()
-	ob := engine.NewOrderBook()
+	ob := engine.NewOrderBook(logger)
 
 	addr := ":" + strconv.Itoa(*port)
-	logger.Printf("Stock Streamer running on http://localhost%s\n", addr)
+	logger.Printf("LimitOrderBook running on http://localhost%s\n", addr)
 
 	if err := server.Serve(addr, ob, logger); err != nil {
 		logger.Fatal(err)
