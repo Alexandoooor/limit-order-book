@@ -101,6 +101,19 @@ const IndexHTML = `<!doctype html>
 	.order-type.buy{background:linear-gradient(90deg, rgba(22,163,74,0.08), transparent); border-color: rgba(16,185,129,0.08)}
 	.order-type.sell{background:linear-gradient(90deg, rgba(239,68,68,0.06), transparent); border-color: rgba(239,68,68,0.08)}
 
+	.order-type:has(input:checked) {
+	  background-color: rgba(52, 199, 89, 0.28); /* green full */
+	  border-color: rgba(52, 199, 89, 0.5);
+	  color: white;
+	}
+
+	.order-type:has(input:checked).sell {
+	  background-color: rgba(255, 59, 48, 0.28); /* red full */
+	  border-color: rgba(255, 59, 48, 0.5);
+	  color: white;
+	}
+
+
 	.price-row{display:flex; align-items:center; gap:8px}
 	.currency{padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.02); font-size:14px; color:var(--muted); border:1px solid rgba(255,255,255,0.02)}
 
@@ -114,8 +127,8 @@ const IndexHTML = `<!doctype html>
 	background:var(--glass); color:inherit; text-align:center;
 	box-shadow: inset 0 0 0 0 transparent;
 	}
-	button.submit.buy{background:linear-gradient(90deg, rgba(22,163,74,0.08), transparent); border-color: rgba(16,185,129,0.08); color:#10b981}
-	button.submit.sell{background:linear-gradient(90deg, rgba(239,68,68,0.06), transparent); border-color: rgba(239,68,68,0.08); color:#ef4444}
+
+	button.submit.buy{background:linear-gradient(90deg, rgba(124,58,237,0.08), transparent); border-color: rgba(124,58,237,0.28); color:#7C3AED}
 	button:disabled{opacity:0.45; cursor:not-allowed}
 
 	.hint{font-size:13px;color:var(--muted); text-align:center}
@@ -143,21 +156,19 @@ const IndexHTML = `<!doctype html>
     <form id="orderForm" novalidate>
       <div>
         <label for="side">Side</label>
-<div class="row" role="radiogroup" aria-label="Order side">
-  <label class="order-type buy" id="buyOption">
-    <input type="radio" name="side" value="buy" id="sideBuy" checked aria-checked="true">
-    <span aria-hidden>▲</span>
-    <span style="min-width:40px;">Buy</span>
-    <small class="hint">(take the bid)</small>
-  </label>
+	<div class="row" role="radiogroup" aria-label="Order side">
+	  <label class="order-type buy" id="buyOption">
+	    <input type="radio" name="side" value="buy" id="sideBuy" checked aria-checked="true">
+	    <span aria-hidden>▲</span>
+	    <span style="min-width:40px;">Buy</span>
+	  </label>
 
-  <label class="order-type sell" id="sellOption">
-    <input type="radio" name="side" value="sell" id="sideSell" aria-checked="false">
-    <span aria-hidden>▼</span>
-    <span style="min-width:40px;">Sell</span>
-    <small class="hint">(hit the ask)</small>
-  </label>
-</div>
+	  <label class="order-type sell" id="sellOption">
+	    <input type="radio" name="side" value="sell" id="sideSell" aria-checked="false">
+	    <span aria-hidden>▼</span>
+	    <span style="min-width:40px;">Sell</span>
+	  </label>
+	</div>
       </div>
 
       <div class="side-by-side">
@@ -182,10 +193,9 @@ const IndexHTML = `<!doctype html>
       </div>
 
       <div>
-        <button type="submit" id="submitBtn" class="submit buy order-type buy">Place Buy Order</button>
+        <button type="submit" id="submitBtn" class="submit buy order-type buy">Place Order</button>
       </div>
 
-      <div style="margin-top:8px;" class="hint">Press enter to submit. Values are validated client-side only.</div>
     </form>
 	</div>
 
@@ -245,6 +255,7 @@ const IndexHTML = `<!doctype html>
 				console.log("Selected side:", document.querySelector('input[name="side"]:checked').value);
 			});
 		});
+
 		const form = document.getElementById('orderForm');
 		form.addEventListener('submit', async (e) => {
 			e.preventDefault();
