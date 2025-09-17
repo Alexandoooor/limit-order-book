@@ -148,61 +148,60 @@ const IndexHTML = `<!doctype html>
 	</style>
 </head>
 <body>
-	<div class="card">
+<div class="card">
 	<h2>Limit Order Book</h2>
 
 	<div class="row">
-	  <strong>New Connected Pod:</strong> <span>{{.Hostname}}</span>
+		<strong>New Connected Pod:</strong> <span>{{.Hostname}}</span>
 	</div>
 
 
 	<h2>Place Order</h2>
 	<div class="row">
+	    <form id="orderForm" novalidate>
+	      <div>
+		<label for="side">Side</label>
+		<div class="row" role="radiogroup" aria-label="Order side">
+		  <label class="order-type buy" id="buyOption">
+		    <input type="radio" name="side" value="buy" id="sideBuy" checked aria-checked="true">
+		    <span aria-hidden>▲</span>
+		    <span style="min-width:40px;">Buy</span>
+		  </label>
 
-    <form id="orderForm" novalidate>
-      <div>
-        <label for="side">Side</label>
-	<div class="row" role="radiogroup" aria-label="Order side">
-	  <label class="order-type buy" id="buyOption">
-	    <input type="radio" name="side" value="buy" id="sideBuy" checked aria-checked="true">
-	    <span aria-hidden>▲</span>
-	    <span style="min-width:40px;">Buy</span>
-	  </label>
+		  <label class="order-type sell" id="sellOption">
+		    <input type="radio" name="side" value="sell" id="sideSell" aria-checked="false">
+		    <span aria-hidden>▼</span>
+		    <span style="min-width:40px;">Sell</span>
+		  </label>
+		</div>
+	      </div>
 
-	  <label class="order-type sell" id="sellOption">
-	    <input type="radio" name="side" value="sell" id="sideSell" aria-checked="false">
-	    <span aria-hidden>▼</span>
-	    <span style="min-width:40px;">Sell</span>
-	  </label>
-	</div>
-      </div>
+	      <div class="side-by-side">
+		<div>
+		  <label for="price">Price</label>
+		  <div class="price-row">
+		    <input id="price" name="price" type="number" inputmode="decimal" step="0.0001" min="0" placeholder="0.0000" aria-describedby="priceHelp" required>
+		    <div class="currency" id="priceHelp">USD</div>
+		  </div>
+		</div>
 
-      <div class="side-by-side">
-        <div>
-          <label for="price">Price</label>
-          <div class="price-row">
-            <input id="price" name="price" type="number" inputmode="decimal" step="0.0001" min="0" placeholder="0.0000" aria-describedby="priceHelp" required>
-            <div class="currency" id="priceHelp">USD</div>
-          </div>
-        </div>
+		<div>
+		  <label for="size">Size</label>
+		  <input id="size" name="size" type="number" inputmode="decimal" step="0.0001" min="0" placeholder="0.0000" aria-describedby="sizeHelp" required>
+		  <div class="hint" id="sizeHelp">Base asset</div>
+		</div>
+	      </div>
 
-        <div>
-          <label for="size">Size</label>
-          <input id="size" name="size" type="number" inputmode="decimal" step="0.0001" min="0" placeholder="0.0000" aria-describedby="sizeHelp" required>
-          <div class="hint" id="sizeHelp">Base asset</div>
-        </div>
-      </div>
+	      <div class="meta" aria-live="polite">
+		<div class="hint">Estimated Total</div>
+		<div class="total" id="total">—</div>
+	      </div>
 
-      <div class="meta" aria-live="polite">
-        <div class="hint">Estimated Total</div>
-        <div class="total" id="total">—</div>
-      </div>
+	      <div>
+		<button type="submit" id="submitBtn" class="submit buy order-type buy">Place Order</button>
+	      </div>
 
-      <div>
-        <button type="submit" id="submitBtn" class="submit buy order-type buy">Place Order</button>
-      </div>
-
-    </form>
+	    </form>
 	</div>
 
 	<div class="column">
