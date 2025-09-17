@@ -76,6 +76,12 @@ const IndexHTML = `<!doctype html>
 	}
 
 	.row{display:flex; gap:12px}
+	table { width: 100%; border-collapse: collapse; background-color: #1e1e2f; color: #fff; border-radius: 8px; overflow: hidden; }
+	th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid #333; }
+	th { background-color: #2c2c3f; font-weight: bold; }
+	tr:nth-child(even) { background-color: #2a2a3c; }
+	tr:hover { background-color: #3a3a4f; }
+	h2 { margin: 0 0 8px 0; font-size: 1.2rem; color: #fff; }
 
 	label{
 		font-size:15px;
