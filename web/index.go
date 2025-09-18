@@ -56,9 +56,13 @@ const IndexHTML = `<!doctype html>
 	color:#e6eef6; display:flex; align-items:center; justify-content:center; padding:24px;
 	}
 
+	.container { display: flex; gap: 2rem; }
+	.order-form { flex: 0 0 350px; gap: 2rem; margin-bottom: 6px; }
+	.order-book { flex: 1; display: flex; flex-direction: column; gap: 2rem; margin-bottom: 6px; }
+
 	.card{
 	width:100%;
-	max-width:1100px;
+	max-width:950px;
 	background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
 	border-radius:var(--radius);
 	padding:32px;
@@ -66,22 +70,43 @@ const IndexHTML = `<!doctype html>
 	border:1px solid rgba(255,255,255,0.03);
 	}
 
-	h1{font-size:22px;margin:0 0 8px 0}
+	h1{font-size:1.5rem; margin:0 0 8px 0; text-align: center;}
+	h2{margin: 0 0 8px 0; font-size: 1.125rem; color: #fff; }
 	p.lead{margin:0 0 24px 0;color:var(--muted);font-size:14px}
 
 	form{
 		display:grid;
-		gap:5px;
+		gap:20px;
 		font-size:15px;
 	}
 
 	.row{display:flex; gap:12px}
-	table { width: 100%; border-collapse: collapse; background-color: #1e1e2f; color: #fff; border-radius: 8px; overflow: hidden; }
-	th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid #333; }
-	th { background-color: #2c2c3f; font-weight: bold; }
-	tr:nth-child(even) { background-color: #2a2a3c; }
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		background-color: #1e1e2f;
+		color: #fff;
+		border-radius:12px;
+		overflow: hidden;
+		border: 1px solid;
+	}
+	th, td {
+		padding: 8px 12px;
+		text-align: left;
+		border-bottom: 1px solid #333;
+		border-right: 1px solid #333;
+		font-size: 15px;
+		font-weight: 400;
+		font-family: inherit;
+	}
+	th {
+		background-color: #2c2c3f;
+	}
+	td {
+		color: var(--muted);
+	}
+	tr:nth-child(odd) { background-color: #2a2a3c; }
 	tr:hover { background-color: #3a3a4f; }
-	h2 { margin: 0 0 8px 0; font-size: 1.2rem; color: #fff; }
 
 	label{
 		font-size:15px;
@@ -90,17 +115,13 @@ const IndexHTML = `<!doctype html>
 		margin-bottom:6px
 	}
 
-	select,input[type="number"]{
-	width:100%; padding:12px 14px; background:var(--glass); border:1px solid rgba(255,255,255,0.04); color:inherit;
-	border-radius:10px; font-size:15px; outline:none;
-	}
-	select:focus,input[type="number"]:focus{box-shadow:0 4px 18px rgba(124,58,237,0.08); border-color:rgba(124,58,237,0.28)}
 
-	.side-by-side{display:grid; grid-template-columns: 1fr 1fr; gap:20px}
+	.side-by-side{display:grid; grid-template-columns: 1fr 1fr; gap:12px}
 
 	.order-type{
-	flex:1; display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:12px; cursor:pointer;
+	flex:1; display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:12px; cursor:pointer;
 	user-select:none; border:1px solid rgba(255,255,255,0.03); background:transparent; font-size:15px;
+	margin-bottom: 0;
 	}
 	.order-type input{display:none}
 
@@ -127,6 +148,12 @@ const IndexHTML = `<!doctype html>
 
 	.total{font-weight:600; font-size:16px}
 
+	select,input[type="number"]{
+	width:100%; padding:12px 14px; background:var(--glass); border:1px solid rgba(255,255,255,0.04); color:inherit;
+	border-radius:12px; font-size:15px; outline:none;
+	}
+	select:focus,input[type="number"]:focus{box-shadow:0 4px 18px rgba(124,58,237,0.08); border-color:rgba(124,58,237,0.28)}
+
 	button.submit{
 	width:100%; max-width:400px; margin:0 auto; display:block;
 	padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); font-weight:600; font-size:15px; cursor:pointer;
@@ -149,95 +176,97 @@ const IndexHTML = `<!doctype html>
 </head>
 <body>
 <div class="card">
-	<h2>Limit Order Book</h2>
-
-	<div class="row">
-		<strong>New Connected Pod:</strong> <span>{{.Hostname}}</span>
-	</div>
-
-
+	<h1>Limit Order Book</h1>
 	<h2>Place Order</h2>
-	<div class="row">
-	    <form id="orderForm" novalidate>
-	      <div>
-		<label for="side">Side</label>
-		<div class="row" role="radiogroup" aria-label="Order side">
-		  <label class="order-type buy" id="buyOption">
-		    <input type="radio" name="side" value="buy" id="sideBuy" checked aria-checked="true">
-		    <span aria-hidden>▲</span>
-		    <span style="min-width:40px;">Buy</span>
-		  </label>
+	<div class="container">
+		<div class="order-form">
+		    <form id="orderForm" novalidate>
+		      <div>
+			<label for="side">Side</label>
+			<div class="row" role="radiogroup" aria-label="Order side">
+			  <label class="order-type buy" id="buyOption">
+			    <input type="radio" name="side" value="buy" id="sideBuy" checked aria-checked="true">
+			    <span aria-hidden>▲</span>
+			    <span style="min-width:40px;">Buy</span>
+			  </label>
 
-		  <label class="order-type sell" id="sellOption">
-		    <input type="radio" name="side" value="sell" id="sideSell" aria-checked="false">
-		    <span aria-hidden>▼</span>
-		    <span style="min-width:40px;">Sell</span>
-		  </label>
-		</div>
-	      </div>
+			  <label class="order-type sell" id="sellOption">
+			    <input type="radio" name="side" value="sell" id="sideSell" aria-checked="false">
+			    <span aria-hidden>▼</span>
+			    <span style="min-width:40px;">Sell</span>
+			  </label>
+			</div>
+		      </div>
 
-	      <div class="side-by-side">
-		<div>
-		  <label for="price">Price</label>
-		  <div class="price-row">
-		    <input id="price" name="price" type="number" inputmode="decimal" step="0.0001" min="0" placeholder="0.0000" aria-describedby="priceHelp" required>
-		    <div class="currency" id="priceHelp">USD</div>
-		  </div>
-		</div>
-
-		<div>
-		  <label for="size">Size</label>
-		  <input id="size" name="size" type="number" inputmode="decimal" step="0.0001" min="0" placeholder="0.0000" aria-describedby="sizeHelp" required>
-		  <div class="hint" id="sizeHelp">Base asset</div>
-		</div>
-	      </div>
-
-	      <div class="meta" aria-live="polite">
-		<div class="hint">Estimated Total</div>
-		<div class="total" id="total">—</div>
-	      </div>
-
-	      <div>
-		<button type="submit" id="submitBtn" class="submit buy order-type buy">Place Order</button>
-	      </div>
-
-	    </form>
-	</div>
-
-	<div class="column">
-		<div class="row">
-			<div class="column">
-				<h2>Bids</h2>
-				<table>
-					<tr><th>Price</th><th>Volume</th></tr>
-					{{range .Bids}}
-					<tr>
-						<td>{{.Price}}</td>
-						<td>{{.Volume}}</td>
-					</tr>
-					{{end}}
-				</table>
+		      <div class="side-by-side">
+			<div>
+			  <label for="price">Price</label>
+			  <div class="price-row">
+			    <input id="price" name="price" type="number" inputmode="decimal" step="1" min="0" placeholder="0" aria-describedby="priceHelp" required>
+			  </div>
 			</div>
 
-			<div class="column">
-			<h2>Asks</h2>
-			<table>
-				<tr><th>Price</th><th>Volume</th></tr>
-				{{range .Asks}}
-				<tr>
-					<td>{{.Price}}</td>
-					<td>{{.Volume}}</td>
-				</tr>
-				{{end}}
-			</table>
+			<div>
+			  <label for="size">Size</label>
+			  <input id="size" name="size" type="number" inputmode="decimal" step="1" min="0" placeholder="0" aria-describedby="sizeHelp" required>
 			</div>
+		      </div>
+
+		      <div>
+			<button type="submit" id="submitBtn" class="submit buy order-type buy">Place Order</button>
+		      </div>
+
+		    </form>
+		</div>
+
+		<div class="order-book">
+			<div class="side-by-side">
+				<div>
+					<label>Bids</label>
+					<table>
+						<tr>
+							<th>Price</th>
+							<th>Volume</th>
+						</tr>
+						{{range .Bids}}
+						<tr>
+							<td>{{.Price}}</td>
+							<td>{{.Volume}}</td>
+						</tr>
+						{{end}}
+					</table>
+				</div>
+
+				<div>
+					<label>Asks</label>
+					<table>
+						<tr>
+							<th>Price</th>
+							<th>Volume</th>
+						</tr>
+						{{range .Asks}}
+						<tr>
+							<td>{{.Price}}</td>
+							<td>{{.Volume}}</td>
+						</tr>
+						{{end}}
+					</table>
+				</div>
+			</div>
+
 		</div>
 	</div>
 
-	<div class="column">
-		<h2>Trades</h2>
+	<div class="order-book">
+		<div>
+		<label>Trades</label>
 		<table>
-			<tr><th>Price</th><th>Size</th><th>Time</th><th>Buyer ID</th><th>Seller ID</th></tr>
+			<tr>
+				<th>Price</th>
+				<th>Size</th><th>Time</th>
+				<th>Buyer ID</th>
+				<th>Seller ID</th>
+			</tr>
 			{{range .Trades}}
 			<tr>
 				<td>{{.Price}}</td>
@@ -248,8 +277,13 @@ const IndexHTML = `<!doctype html>
 			</tr>
 			{{end}}
 		</table>
-
+		</div>
 	</div>
+
+
+	<footer>
+		<div class="hint">New Connected Pod: {{.Hostname}}</div>
+	</footer>
 
 	<script>
 
@@ -266,7 +300,6 @@ const IndexHTML = `<!doctype html>
 			e.preventDefault();
 
 			const side = document.querySelector('input[name="side"]:checked').value;
-			// const side = document.getElementById('side').value;
 			const price = parseInt(document.getElementById('price').value);
 			const size = parseInt(document.getElementById('size').value);
 

@@ -3,7 +3,6 @@ package engine
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"os"
 	"time"
 	"log"
 )
@@ -61,18 +60,6 @@ type Trade struct {
 	SellerID uuid.UUID `json:"sellerId"`
 }
 
-type LevelView struct {
-	Price  int
-	Volume int
-}
-
-type OrderBookView struct {
-	Bids     []LevelView
-	Asks     []LevelView
-	Trades   []Trade
-	Hostname string
-}
-
 func NewOrderBook(logger *log.Logger) *OrderBook {
 	ob := &OrderBook{
 		logger:     logger,
@@ -83,35 +70,6 @@ func NewOrderBook(logger *log.Logger) *OrderBook {
 		highestBid: nil,
 	}
 	return ob
-}
-
-func (ob *OrderBook) BuildOrderBookView() OrderBookView {
-	view := OrderBookView{}
-
-	for price, level := range ob.bids {
-		view.Bids = append(view.Bids, LevelView{
-			Price: price,
-			Volume: level.volume,
-		})
-	}
-
-	for price, level := range ob.asks {
-		view.Asks = append(view.Asks, LevelView{
-			Price: price,
-			Volume: level.volume,
-		})
-	}
-
-	view.Trades = ob.trades
-
-	hostname := os.Getenv("HOSTNAME")
-	if hostname == "" {
-		hostname = "unknown"
-	}
-
-	view.Hostname = hostname
-
-	return view
 }
 
 func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {

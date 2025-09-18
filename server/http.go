@@ -38,7 +38,7 @@ func Serve(addr string, ob *engine.OrderBook, logger *log.Logger) error {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-		view := ob.BuildOrderBookView()
+		view := engine.BuildOrderBookView(ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
 
