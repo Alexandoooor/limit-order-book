@@ -8,15 +8,9 @@ import (
 	"io"
 	"limit-order-book/engine"
 	"limit-order-book/web"
-	"net/http"
 	"log"
+	"net/http"
 )
-
-
-func hello(w http.ResponseWriter, req *http.Request) {
-
-	fmt.Fprintf(w, "hello\n")
-}
 
 func headers(w http.ResponseWriter, req *http.Request) {
 
@@ -28,26 +22,24 @@ func headers(w http.ResponseWriter, req *http.Request) {
 }
 
 type PlaceOrderRequest struct {
-	Side  string	`json:"side"`
-	Price int	`json:"price"`
-	Size  int	`json:"size"`
+	Side  string `json:"side"`
+	Price int    `json:"price"`
+	Size  int    `json:"size"`
 }
 
 func Serve(addr string, ob *engine.OrderBook, logger *log.Logger) error {
-    	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
 		view := engine.BuildOrderBookView(ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
-
 	})
 
 	http.HandleFunc("/headers", headers)
 
 	http.HandleFunc("/ob", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, ob.String())
+		fmt.Fprint(w, ob.String())
 	})
 
 	http.HandleFunc("/api/order", func(w http.ResponseWriter, r *http.Request) {

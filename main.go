@@ -10,13 +10,25 @@ import (
 )
 
 var (
-	port = flag.Int("port", 3000, "HTTP port")
+	port      = flag.Int("port", 3000, "HTTP port")
+	logToFile = flag.String("logfile", "", "log file")
 )
 
 func main() {
-	logger := log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
-
 	flag.Parse()
+
+	output := os.Stdout
+	if *logToFile != "" {
+		f, err := os.OpenFile(*logToFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			log.Fatalf("error opening file: %v", err)
+		}
+		defer f.Close()
+
+		output = f
+	}
+	logger := log.New(output, "", log.LstdFlags|log.Lshortfile)
+
 	ob := engine.NewOrderBook(logger)
 
 	addr := ":" + strconv.Itoa(*port)

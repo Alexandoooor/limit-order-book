@@ -20,16 +20,16 @@ type OrderBookView struct {
 func BuildOrderBookView(ob *OrderBook) OrderBookView {
 	view := OrderBookView{}
 
-	for price, level := range ob.bids {
+	for price, level := range ob.levels[Buy] {
 		view.Bids = append(view.Bids, LevelView{
-			Price: price,
+			Price:  price,
 			Volume: level.volume,
 		})
 	}
 
-	for price, level := range ob.asks {
+	for price, level := range ob.levels[Sell] {
 		view.Asks = append(view.Asks, LevelView{
-			Price: price,
+			Price:  price,
 			Volume: level.volume,
 		})
 	}

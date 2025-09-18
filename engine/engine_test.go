@@ -3,6 +3,7 @@ package engine
 import (
 	"math/rand/v2"
 	"testing"
+
 	"github.com/google/uuid"
 )
 
@@ -87,7 +88,6 @@ func TestLowestAsk(t *testing.T) {
 
 }
 
-
 func TestMultiOrderLevel(t *testing.T) {
 	ob := NewOrderBook()
 
@@ -100,7 +100,7 @@ func TestMultiOrderLevel(t *testing.T) {
 		orders[x] = *ob.orders[id]
 	}
 
-	level := ob.bids[randomprice]
+	level := ob.levels[Buy][randomprice]
 
 	expectedHead := &orders[0]
 	if level.headOrder.id != expectedHead.id {
@@ -114,7 +114,7 @@ func TestMultiOrderLevel(t *testing.T) {
 
 	expectedVolume := 0
 	for x := range 5 {
-		expectedVolume += randomprice*(x+1)
+		expectedVolume += randomprice * (x + 1)
 	}
 	if level.volume != expectedVolume {
 		t.Fatalf("tests - volume wrong. expected=%+v, got=%+v", expectedVolume, level.volume)
@@ -134,7 +134,7 @@ func TestRemoveTail(t *testing.T) {
 	order := ob.orders[id1]
 	ob.RemoveOrder(*order)
 
-	level := ob.bids[1337]
+	level := ob.levels[Buy][1337]
 	if level.tailOrder.id != id0 {
 		t.Fatalf("tests - tail wrong. expected=%+v, got=%+v", id0, level.tailOrder.id)
 	}
@@ -149,7 +149,8 @@ func TestRemoveHead(t *testing.T) {
 	order := ob.orders[id0]
 	ob.RemoveOrder(*order)
 
-	level := ob.bids[7331]
+	// level := ob.levels[Buy][7331]
+	level := ob.levels[Buy][7331]
 	if level.headOrder.id != id1 {
 		t.Fatalf("tests - head wrong. expected=%+v, got=%+v", id1, level.headOrder.id)
 	}
@@ -183,12 +184,12 @@ func TestRemoveOnlyOrderInLevel(t *testing.T) {
 	order := ob.orders[id0]
 	ob.RemoveOrder(*order)
 
-	if ob.bids[42] != nil {
-		t.Fatalf("tests - removing last order in level should delete level. expected=%+v, got=%+v", nil, ob.bids[42])
+	if ob.levels[Buy][42] != nil {
+		t.Fatalf("tests - removing last order in level should delete level. expected=%+v, got=%+v", nil, ob.levels[Buy][42])
 	}
 
-	if ob.highestBid != ob.bids[41] {
-		t.Fatalf("tests - highestBid not moved to nextLevel. expected=%+v, got=%+v", ob.bids[41], ob.highestBid)
+	if ob.highestBid != ob.levels[Buy][41] {
+		t.Fatalf("tests - highestBid not moved to nextLevel. expected=%+v, got=%+v", ob.levels[Buy][41], ob.highestBid)
 	}
 
 }
@@ -199,7 +200,6 @@ func TestCancelOrder(t *testing.T) {
 	id0 := ob.ProcessOrder(Sell, 40, 2)
 
 	isCanceled := ob.CancelOrder(id0)
-
 
 	if len(ob.orders) != 0 {
 		t.Fatalf("tests - order book should be empty. expected=%+v, got=%+v", 0, len(ob.orders))
@@ -225,8 +225,8 @@ func TestRemoveOnlyOrderInBook(t *testing.T) {
 	order := ob.orders[id0]
 	ob.RemoveOrder(*order)
 
-	if ob.bids[42] != nil {
-		t.Fatalf("tests - removing last order in level should delete level. expected=%+v, got=%+v", nil, ob.bids[42])
+	if ob.levels[Buy][42] != nil {
+		t.Fatalf("tests - removing last order in level should delete level. expected=%+v, got=%+v", nil, ob.levels[Buy][42])
 	}
 
 	if ob.highestBid != nil {
@@ -234,7 +234,6 @@ func TestRemoveOnlyOrderInBook(t *testing.T) {
 	}
 
 }
-
 
 func TestProcessPartialOrder(t *testing.T) {
 	ob := NewOrderBook()
@@ -252,7 +251,7 @@ func TestProcessPartialOrder(t *testing.T) {
 	}
 
 	if o0 != nil {
-		t.Fatalf("tests - order %d was completely filled and should have" +
+		t.Fatalf("tests - order %d was completely filled and should have"+
 			" been removed from the orderbook. expected=%v, got=%+v",
 			id0, nil, o1)
 	}
@@ -268,27 +267,26 @@ func TestProcessWholeOrder(t *testing.T) {
 	o1 := ob.orders[id1]
 
 	if o0 != nil {
-		t.Fatalf("tests - order 0 should be executed and removed from the order book." +
+		t.Fatalf("tests - order 0 should be executed and removed from the order book."+
 			" expected=%+v, got=%+v", nil, o0)
 	}
 
 	if o1 != nil {
-		t.Fatalf("tests - order 1 should be executed and removed from the order book." +
+		t.Fatalf("tests - order 1 should be executed and removed from the order book."+
 			" expected=%+v, got=%+v", nil, o1)
 	}
 
-	if len(ob.bids) != 0 {
-		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.bids))
+	if len(ob.levels[Buy]) != 0 {
+		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.levels[Buy]))
 	}
 
-	if len(ob.asks) != 0 {
-		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.asks))
+	if len(ob.levels[Sell]) != 0 {
+		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.levels[Sell]))
 	}
 
 	if len(ob.orders) != 0 {
 		t.Fatalf("tests - order book should be empty. expected=%+v, got=%+v", 0, len(ob.orders))
 	}
-
 
 }
 
@@ -299,7 +297,7 @@ func TestProcessMultiLevelOrder(t *testing.T) {
 	id1 := ob.ProcessOrder(Sell, 40, 2)
 
 	if ob.orders[id0].remaining != 1 {
-		t.Fatalf("tests - order 0 should be partially filled." + " expected=%d, got=%+v", 1, ob.orders[id0].remaining)
+		t.Fatalf("tests - order 0 should be partially filled."+" expected=%d, got=%+v", 1, ob.orders[id0].remaining)
 	}
 
 	id2 := ob.ProcessOrder(Sell, 41, 1)
@@ -309,26 +307,26 @@ func TestProcessMultiLevelOrder(t *testing.T) {
 	o2 := ob.orders[id2]
 
 	if o0 != nil {
-		t.Fatalf("tests - order 0 should be executed and removed from the order book." +
+		t.Fatalf("tests - order 0 should be executed and removed from the order book."+
 			" expected=%+v, got=%+v", nil, o0)
 	}
 
 	if o1 != nil {
-		t.Fatalf("tests - order 1 should be executed and removed from the order book." +
+		t.Fatalf("tests - order 1 should be executed and removed from the order book."+
 			" expected=%+v, got=%+v", nil, o1)
 	}
 
 	if o2 != nil {
-		t.Fatalf("tests - order 2 should be executed and removed from the order book." +
+		t.Fatalf("tests - order 2 should be executed and removed from the order book."+
 			" expected=%+v, got=%+v", nil, o2)
 	}
 
-	if len(ob.bids) != 0 {
-		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.bids))
+	if len(ob.levels[Buy]) != 0 {
+		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.levels[Buy]))
 	}
 
-	if len(ob.asks) != 0 {
-		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.asks))
+	if len(ob.levels[Sell]) != 0 {
+		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.levels[Sell]))
 	}
 
 	if len(ob.orders) != 0 {
@@ -344,7 +342,7 @@ func TestProcessMultiLevelOrder2(t *testing.T) {
 	id1 := ob.ProcessOrder(Buy, 42, 3)
 
 	if ob.orders[id1].remaining != 1 {
-		t.Fatalf("tests - order 1 should be partially filled." + " expected=%d, got=%+v", 1, ob.orders[id1].remaining)
+		t.Fatalf("tests - order 1 should be partially filled."+" expected=%d, got=%+v", 1, ob.orders[id1].remaining)
 	}
 
 	id2 := ob.ProcessOrder(Sell, 41, 1)
@@ -354,26 +352,26 @@ func TestProcessMultiLevelOrder2(t *testing.T) {
 	o2 := ob.orders[id2]
 
 	if o0 != nil {
-		t.Fatalf("tests - order 0 should be executed and removed from the order book." +
+		t.Fatalf("tests - order 0 should be executed and removed from the order book."+
 			" expected=%+v, got=%+v", nil, o0)
 	}
 
 	if o1 != nil {
-		t.Fatalf("tests - order 1 should be executed and removed from the order book." +
+		t.Fatalf("tests - order 1 should be executed and removed from the order book."+
 			" expected=%+v, got=%+v", nil, o1)
 	}
 
 	if o2 != nil {
-		t.Fatalf("tests - order 2 should be executed and removed from the order book." +
+		t.Fatalf("tests - order 2 should be executed and removed from the order book."+
 			" expected=%+v, got=%+v", nil, o2)
 	}
 
-	if len(ob.bids) != 0 {
-		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.bids))
+	if len(ob.levels[Buy]) != 0 {
+		t.Fatalf("tests - bids should be empty. expected=%+v, got=%+v", 0, len(ob.levels[Buy]))
 	}
 
-	if len(ob.asks) != 0 {
-		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.asks))
+	if len(ob.levels[Sell]) != 0 {
+		t.Fatalf("tests - asks should be empty. expected=%+v, got=%+v", 0, len(ob.levels[Sell]))
 	}
 
 	if len(ob.orders) != 0 {
