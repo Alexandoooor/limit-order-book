@@ -3,9 +3,13 @@ package engine
 import (
 	"math/rand/v2"
 	"testing"
-
+	"log"
 	"github.com/google/uuid"
 )
+
+func TestMain(m *testing.M) {
+	Logger = log.Default()
+}
 
 func TestAddingOrders(t *testing.T) {
 	ob := NewOrderBook()

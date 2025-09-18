@@ -7,8 +7,9 @@ import (
 	"time"
 )
 
+var Logger *log.Logger
+
 type OrderBook struct {
-	logger     *log.Logger
 	levels     map[Side]map[int]*Level
 	orders     map[uuid.UUID]*Order
 	lowestAsk  *Level
@@ -52,21 +53,13 @@ const (
 	Sell
 )
 
-func NewOrderBook(loggers ...*log.Logger) *OrderBook {
-	var logger *log.Logger
-	if len(loggers) > 0 && loggers[0] != nil {
-		logger = loggers[0]
-	} else {
-		logger = log.Default()
-	}
-
+func NewOrderBook() *OrderBook {
 	levels := map[Side]map[int]*Level{
 		Buy:  make(map[int]*Level),
 		Sell: make(map[int]*Level),
 	}
 
 	ob := &OrderBook{
-		logger: logger,
 		levels: levels,
 		orders: make(map[uuid.UUID]*Order),
 	}
@@ -232,7 +225,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 						}
 					}
 					ob.trades = append(ob.trades, trade)
-					ob.logger.Println(ob.GetTrades())
+					Logger.Println(ob.GetTrades())
 
 					incomingRemaining -= existingOrder.remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
@@ -256,7 +249,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 						}
 					}
 					ob.trades = append(ob.trades, trade)
-					ob.logger.Println(ob.GetTrades())
+					Logger.Println(ob.GetTrades())
 
 					existingOrder.parentLevel.volume -= incomingRemaining
 					existingOrder.remaining -= incomingRemaining

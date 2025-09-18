@@ -12,6 +12,8 @@ import (
 	"net/http"
 )
 
+var Logger *log.Logger
+
 func headers(w http.ResponseWriter, req *http.Request) {
 
 	for name, headers := range req.Header {
@@ -27,9 +29,7 @@ type PlaceOrderRequest struct {
 	Size  int    `json:"size"`
 }
 
-func Serve(addr string, ob *engine.OrderBook, logger *log.Logger) error {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
+func Serve(addr string, ob *engine.OrderBook) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		view := engine.BuildOrderBookView(ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
@@ -79,8 +79,8 @@ func Serve(addr string, ob *engine.OrderBook, logger *log.Logger) error {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(order)
 
-		logger.Println(ob)
-		logger.Println(ob.GetLevel(side, req.Price))
+		Logger.Println(ob)
+		Logger.Println(ob.GetLevel(side, req.Price))
 	})
 
 	return http.ListenAndServe(addr, nil)

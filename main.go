@@ -28,13 +28,15 @@ func main() {
 		output = f
 	}
 	logger := log.New(output, "", log.LstdFlags|log.Lshortfile)
+	engine.Logger = logger
+	server.Logger = logger
 
-	ob := engine.NewOrderBook(logger)
+	ob := engine.NewOrderBook()
 
 	addr := ":" + strconv.Itoa(*port)
-	logger.Printf("LimitOrderBook running on http://localhost%s\n", addr)
+	log.Printf("LimitOrderBook running on http://localhost%s\n", addr)
 
-	if err := server.Serve(addr, ob, logger); err != nil {
-		logger.Fatal(err)
+	if err := server.Serve(addr, ob); err != nil {
+		log.Fatal(err)
 	}
 }
