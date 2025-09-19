@@ -1,30 +1,5 @@
 package web
 
-import (
-	"html/template"
-	"net/http"
-	"os"
-	"strings"
-)
-
-var indexTmpl = template.Must(template.New("index").Parse(IndexHTML))
-
-func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	hostname := os.Getenv("HOSTNAME")
-	if hostname == "" {
-		hostname = "unknown"
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	data := map[string]string{"Hostname": hostname}
-
-	if err := indexTmpl.Execute(w, data); err != nil {
-		// fallback: literal replace to ensure hostname is visible even if template engine chokes
-		fallback := strings.ReplaceAll(IndexHTML, "{{.Hostname}}", hostname)
-		_, _ = w.Write([]byte(fallback))
-	}
-}
-
 func IndexTemplate() string {
 	return IndexHTML
 }

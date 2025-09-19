@@ -19,6 +19,17 @@ Build the image after running eval
 
 - K8s dashboard `minikube dashboard`
 
+
+Scale:
+    kubectl scale deployments/kubernetes-limit-order-book --replicas=4
+
+Rollout updated image:
+    kubectl set image deployments/kubernetes-limit-order-book limit-order-book=limit-order-book:<TAG>
+
+Undo Rollout:
+    kubectl rollout undo deployments/kubernetes-limit-order-book
+
+
 Example:
     Starting the tunnel returns url `http://127.0.0.1:<PORT>`
     We can then access it like this: `curl http://127.0.0.1:<PORT>/<ENDPOINT>`

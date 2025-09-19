@@ -11,21 +11,25 @@ import (
 
 var (
 	port      = flag.Int("port", 3000, "HTTP port")
-	logToFile = flag.String("logfile", "", "log file")
 )
 
 func main() {
 	flag.Parse()
+	addr := ":" + strconv.Itoa(*port)
 
 	output := os.Stdout
-	if *logToFile != "" {
-		f, err := os.OpenFile(*logToFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if logFile := os.Getenv("LOGFILE"); logFile != "" {
+		f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			log.Fatalf("error opening file: %v", err)
 		}
 		defer f.Close()
 
 		output = f
+		log.Printf("LimitOrderBook running on http://localhost%s\n", addr)
+		log.Printf("Logging to file: %s\n", logFile)
+	} else {
+		log.Println("Logging to Stdout")
 	}
 	logger := log.New(output, "", log.LstdFlags|log.Lshortfile)
 	engine.Logger = logger
@@ -33,10 +37,8 @@ func main() {
 
 	ob := engine.NewOrderBook()
 
-	addr := ":" + strconv.Itoa(*port)
-	log.Printf("LimitOrderBook running on http://localhost%s\n", addr)
-
+	logger.Printf("LimitOrderBook running on http://localhost%s\n", addr)
 	if err := server.Serve(addr, ob); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }

@@ -14,6 +14,12 @@ spec:
     spec:
       containers:
       - name: limit-order-book
-        image: limit-order-book:1.0
+        image: limit-order-book:1.3
         ports:
         - containerPort: 3000
+        env:
+        - name: LOGFILE
+          valueFrom:
+            configMapKeyRef:
+              key: logfile
+              name: logfile
