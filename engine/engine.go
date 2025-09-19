@@ -114,8 +114,8 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	return newLevel
 }
 
-func (ob *OrderBook) AddOrder(id uuid.UUID, side Side, price int, size int, remaining int) uuid.UUID {
-	newOrder := Order{
+func (ob *OrderBook) createOrder(id uuid.UUID, side Side, price int, size int, remaining int) Order {
+	return Order{
 		id:        id,
 		side:      side,
 		size:      size,
@@ -123,21 +123,24 @@ func (ob *OrderBook) AddOrder(id uuid.UUID, side Side, price int, size int, rema
 		price:     price,
 		time:      time.Now().UTC(),
 	}
-	level, ok := ob.levels[side][price]
+}
+
+func (ob *OrderBook) AddOrder(order Order) uuid.UUID {
+	level, ok := ob.levels[order.side][order.price]
 	if ok {
-		newOrder.parentLevel = level
-		newOrder.prevOrder = level.tailOrder
-		level.tailOrder.nextOrder = &newOrder
-		level.tailOrder = &newOrder
-		level.volume += newOrder.remaining
+		order.parentLevel = level
+		order.prevOrder = level.tailOrder
+		level.tailOrder.nextOrder = &order
+		level.tailOrder = &order
+		level.volume += order.remaining
 		level.count++
 	} else {
-		newLevel := ob.NewLevel(&newOrder, side)
-		ob.levels[side][newLevel.price] = newLevel
+		newLevel := ob.NewLevel(&order, order.side)
+		ob.levels[order.side][newLevel.price] = newLevel
 	}
 
-	ob.orders[newOrder.id] = &newOrder
-	return newOrder.id
+	ob.orders[order.id] = &order
+	return order.id
 
 }
 
@@ -188,7 +191,8 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 	}
 
 	if currentBestLevel == nil {
-		ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
+		newOrder := ob.createOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
+		ob.AddOrder(newOrder)
 	} else {
 		var currentLevel *Level
 		for true {
@@ -274,7 +278,8 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 		}
 
 		if incomingRemaining > 0 {
-			ob.AddOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
+			newOrder := ob.createOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
+			ob.AddOrder(newOrder)
 		}
 	}
 	return incomingOrderId
@@ -307,7 +312,6 @@ func (ob *OrderBook) GetOrderBook() string {
 		}
 		return s
 	}
-
 }
 
 func (ob *OrderBook) String() string {

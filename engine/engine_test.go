@@ -19,7 +19,8 @@ func TestAddingOrders(t *testing.T) {
 
 	for x := range 10 {
 		expectedSize := 1
-		id := ob.AddOrder(uuid.New(), Buy, x, expectedSize, expectedSize)
+		o := ob.createOrder(uuid.New(), Buy, x, expectedSize, expectedSize)
+		id := ob.AddOrder(o)
 
 		if ob.orders[id].price != x {
 			t.Fatalf("tests - order.price wrong. expected=%+v, got=%+v", x, ob.orders[id].price)
@@ -43,19 +44,24 @@ func TestHighestBid(t *testing.T) {
 	}
 
 	for x := 88; x <= 92; x++ {
-		ob.AddOrder(uuid.New(), Buy, x, 1, 1)
+		o := ob.createOrder(uuid.New(), Buy, x, 1, 1)
+		ob.AddOrder(o)
 		if ob.highestBid.price != x {
 			t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", x, ob.highestBid.price)
 		}
 	}
 
+	o := ob.createOrder(uuid.New(), Buy, 90, 1, 1)
+	ob.AddOrder(o)
+
 	expectedhighestBid := 92
-	ob.AddOrder(uuid.New(), Buy, 90, 1, 1)
 	if ob.highestBid.price != expectedhighestBid {
 		t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", expectedhighestBid, ob.highestBid.price)
 	}
 
-	ob.AddOrder(uuid.New(), Buy, 999, 1, 1)
+	o1 := ob.createOrder(uuid.New(), Buy, 999, 1, 1)
+	ob.AddOrder(o1)
+
 	expectedprice := 999
 	if ob.highestBid.price != expectedprice {
 		t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", expectedprice, ob.highestBid.price)
@@ -72,7 +78,8 @@ func TestLowestAsk(t *testing.T) {
 	ob = NewOrderBook()
 	expectedlowestAsk := 88
 	for x := 88; x <= 92; x++ {
-		ob.AddOrder(uuid.New(), Sell, x, 1, 1)
+		o := ob.createOrder(uuid.New(), Sell, x, 1, 1)
+		ob.AddOrder(o)
 		if ob.lowestAsk.price != expectedlowestAsk {
 			t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", expectedlowestAsk, ob.lowestAsk.price)
 		}
@@ -80,14 +87,16 @@ func TestLowestAsk(t *testing.T) {
 
 	ob = NewOrderBook()
 	for x := 92; x >= 88; x-- {
-		ob.AddOrder(uuid.New(), Sell, x, 1, 1)
+		o := ob.createOrder(uuid.New(), Sell, x, 1, 1)
+		ob.AddOrder(o)
 		if ob.lowestAsk.price != x {
 			t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", x, ob.lowestAsk.price)
 		}
 	}
 
 	ob = NewOrderBook()
-	ob.AddOrder(uuid.New(), Sell, 1, 1, 1)
+	o := ob.createOrder(uuid.New(), Sell, 1, 1, 1)
+	ob.AddOrder(o)
 	expectedlowestAsk = 1
 	if ob.lowestAsk.price != expectedlowestAsk {
 		t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", expectedlowestAsk, ob.lowestAsk.price)
@@ -103,7 +112,8 @@ func TestMultiOrderLevel(t *testing.T) {
 
 	randomprice := rand.IntN(42) + (42 % 3)
 	for x := range n {
-		id := ob.AddOrder(uuid.New(), Buy, randomprice, randomprice*(x+1), randomprice*(x+1))
+		o := ob.createOrder(uuid.New(), Buy, randomprice, randomprice*(x+1), randomprice*(x+1))
+		id := ob.AddOrder(o)
 		orders[x] = *ob.orders[id]
 	}
 
@@ -135,8 +145,10 @@ func TestMultiOrderLevel(t *testing.T) {
 func TestRemoveTail(t *testing.T) {
 	ob := NewOrderBook()
 
-	id0 := ob.AddOrder(uuid.New(), Buy, 1337, 1, 1)
-	id1 := ob.AddOrder(uuid.New(), Buy, 1337, 2, 2) //The second order aka the tail is the one we remove
+	o0 := ob.createOrder(uuid.New(), Buy, 1337, 1, 1)
+	o1 := ob.createOrder(uuid.New(), Buy, 1337, 2, 2)
+	id0 := ob.AddOrder(o0)
+	id1 := ob.AddOrder(o1) //The second order aka the tail is the one we remove
 
 	order := ob.orders[id1]
 	ob.RemoveOrder(*order)
@@ -150,8 +162,10 @@ func TestRemoveTail(t *testing.T) {
 func TestRemoveHead(t *testing.T) {
 	ob := NewOrderBook()
 
-	id0 := ob.AddOrder(uuid.New(), Buy, 7331, 1, 1) //The first order aka the head is the one we remove
-	id1 := ob.AddOrder(uuid.New(), Buy, 7331, 2, 2)
+	o0 := ob.createOrder(uuid.New(), Buy, 7331, 1, 1) //The first order aka the head is the one we remove
+	o1 := ob.createOrder(uuid.New(), Buy, 7331, 2, 2)
+	id0 := ob.AddOrder(o0)
+	id1 := ob.AddOrder(o1)
 
 	order := ob.orders[id0]
 	ob.RemoveOrder(*order)
@@ -166,9 +180,13 @@ func TestRemoveHead(t *testing.T) {
 func TestRemoveMiddle(t *testing.T) {
 	ob := NewOrderBook()
 
-	id0 := ob.AddOrder(uuid.New(), Buy, 7331, 3, 3)
-	id1 := ob.AddOrder(uuid.New(), Buy, 7331, 1, 1) //The middle order is removed
-	id2 := ob.AddOrder(uuid.New(), Buy, 7331, 2, 2)
+	o0 := ob.createOrder(uuid.New(), Buy, 7331, 3, 3)
+	o1 := ob.createOrder(uuid.New(), Buy, 7331, 1, 1) //The middle order is removed
+	o2 := ob.createOrder(uuid.New(), Buy, 7331, 2, 2)
+
+	id0 := ob.AddOrder(o0)
+	id1 := ob.AddOrder(o1) //The middle order is removed
+	id2 := ob.AddOrder(o2)
 
 	order := ob.orders[id1]
 	ob.RemoveOrder(*order)
@@ -185,8 +203,11 @@ func TestRemoveMiddle(t *testing.T) {
 func TestRemoveOnlyOrderInLevel(t *testing.T) {
 	ob := NewOrderBook()
 
-	id0 := ob.AddOrder(uuid.New(), Buy, 42, 9, 9)
-	ob.AddOrder(uuid.New(), Buy, 41, 9, 9)
+	o0 := ob.createOrder(uuid.New(), Buy, 42, 9, 9)
+	o1 := ob.createOrder(uuid.New(), Buy, 41, 9, 9)
+
+	id0 := ob.AddOrder(o0)
+	ob.AddOrder(o1)
 
 	order := ob.orders[id0]
 	ob.RemoveOrder(*order)
@@ -227,7 +248,7 @@ func TestCancelOrder(t *testing.T) {
 func TestRemoveOnlyOrderInBook(t *testing.T) {
 	ob := NewOrderBook()
 
-	id0 := ob.AddOrder(uuid.New(), Buy, 42, 9, 9)
+	id0 := ob.ProcessOrder(Buy, 42, 9)
 
 	order := ob.orders[id0]
 	ob.RemoveOrder(*order)
