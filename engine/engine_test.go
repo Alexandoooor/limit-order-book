@@ -1,14 +1,17 @@
 package engine
 
 import (
+	"log"
+	"io"
 	"math/rand/v2"
 	"testing"
-	"log"
+
 	"github.com/google/uuid"
 )
 
 func TestMain(m *testing.M) {
-	Logger = log.Default()
+	Logger = log.New(io.Discard, "", 0)
+	m.Run()
 }
 
 func TestAddingOrders(t *testing.T) {
@@ -382,4 +385,105 @@ func TestProcessMultiLevelOrder2(t *testing.T) {
 		t.Fatalf("tests - order book should be empty. expected=%+v, got=%+v", 0, len(ob.orders))
 	}
 
+}
+
+func TestProcessTrade1(t *testing.T) {
+	ob := NewOrderBook()
+
+	ob.ProcessOrder(Sell, 85, 10)
+	ob.ProcessOrder(Sell, 86, 1)
+	ob.ProcessOrder(Sell, 87, 1)
+	ob.ProcessOrder(Sell, 88, 1)
+
+	ob.ProcessOrder(Buy, 88, 4)
+
+	if len(ob.trades) != 1 {
+		t.Fatalf("tests - there should be one trade. expected=%+v, got=%+v", 1, len(ob.trades))
+	}
+
+	expectedTradePrice := 85
+	if ob.trades[0].Price != expectedTradePrice {
+		t.Fatalf("tests - wrong trade price. expected=%+v, got=%+v", expectedTradePrice, ob.trades[0].Price)
+	}
+
+	expectedTradeSize := 4
+	if ob.trades[0].Size != expectedTradeSize {
+		t.Fatalf("tests - wrong trade size. expected=%+v, got=%+v", expectedTradeSize, ob.trades[0].Size)
+	}
+
+}
+
+func TestProcessTrade2(t *testing.T) {
+	ob := NewOrderBook()
+
+	ob.ProcessOrder(Sell, 85, 10)
+	ob.ProcessOrder(Sell, 86, 1)
+	ob.ProcessOrder(Sell, 87, 1)
+	ob.ProcessOrder(Sell, 88, 1)
+
+	ob.ProcessOrder(Buy, 88, 12)
+
+	var expectedTrades = []struct {
+		expectedPrice, expectedSize int
+	}{
+		{85, 10},
+		{86, 1},
+		{87, 1},
+	}
+
+	if len(ob.trades) != len(expectedTrades) {
+		t.Fatalf("tests - there should be one trade. expected=%+v, got=%+v", 1, len(ob.trades))
+	}
+
+	for i, expectedTrade := range expectedTrades {
+		if ob.trades[i].Price != expectedTrade.expectedPrice {
+			t.Fatalf("tests - wrong trade price. expected=%+v, got=%+v", expectedTrade.expectedPrice, ob.trades[i].Price)
+		}
+		if ob.trades[i].Size != expectedTrade.expectedSize {
+			t.Fatalf("tests - wrong trade size. expected=%+v, got=%+v", expectedTrade.expectedSize, ob.trades[i].Size)
+		}
+	}
+}
+
+func TestProcessTrade3(t *testing.T) {
+	ob := NewOrderBook()
+
+	orderIDs := []uuid.UUID{
+		ob.ProcessOrder(Sell, 85, 10),
+		ob.ProcessOrder(Buy, 88, 12),
+	}
+
+	var expectedTrades = []struct {
+		expectedPrice, expectedSize int
+	}{
+		{85, 10},
+	}
+
+	if len(ob.trades) != len(expectedTrades) {
+		t.Fatalf("tests - there should be one trade. expected=%+v, got=%+v", 1, len(ob.trades))
+	}
+
+	for i, expectedTrade := range expectedTrades {
+		if ob.trades[i].Price != expectedTrade.expectedPrice {
+			t.Fatalf("tests - wrong trade price. expected=%+v, got=%+v", expectedTrade.expectedPrice, ob.trades[i].Price)
+		}
+		if ob.trades[i].Size != expectedTrade.expectedSize {
+			t.Fatalf("tests - wrong trade size. expected=%+v, got=%+v", expectedTrade.expectedSize, ob.trades[i].Size)
+		}
+	}
+
+	var expectedRemainingOrders = []struct {
+		expectedPrice, expectedRemaining int
+	}{
+		{88, 2},
+	}
+
+	for _, expectedOrder := range expectedRemainingOrders {
+		actualOrder := ob.orders[orderIDs[1]]
+		if actualOrder.remaining != expectedOrder.expectedRemaining {
+			t.Fatalf(
+				"tests - wrong remaining size. expected=%+v, got=%+v",
+				expectedOrder.expectedRemaining, actualOrder.remaining)
+		}
+	}
 }

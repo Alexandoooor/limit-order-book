@@ -209,7 +209,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 					var trade Trade
 					if incomingSide == Buy {
 						trade = Trade{
-							Price:    incomingPrice,
+							Price:    existingOrder.price,
 							Size:     existingOrder.remaining,
 							Time:     time.Now().UTC(),
 							BuyerID:  incomingOrderId,
@@ -217,7 +217,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 						}
 					} else {
 						trade = Trade{
-							Price:    incomingPrice,
+							Price:    existingOrder.price,
 							Size:     existingOrder.remaining,
 							Time:     time.Now().UTC(),
 							BuyerID:  existingOrder.id,
@@ -233,7 +233,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 					var trade Trade
 					if incomingSide == Buy {
 						trade = Trade{
-							Price:    incomingPrice,
+							Price:    existingOrder.price,
 							Size:     incomingRemaining,
 							Time:     time.Now().UTC(),
 							BuyerID:  incomingOrderId,
@@ -241,7 +241,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 						}
 					} else {
 						trade = Trade{
-							Price:    incomingPrice,
+							Price:    existingOrder.price,
 							Size:     incomingRemaining,
 							Time:     time.Now().UTC(),
 							BuyerID:  existingOrder.id,
