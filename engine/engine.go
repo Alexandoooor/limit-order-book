@@ -182,41 +182,42 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incomingSize int) uuid.UUID {
 	incomingOrderId := uuid.New()
 	incomingRemaining := incomingSize
+	incomingOrder := ob.createOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
+
 	var currentBestLevel *Level
 
-	if incomingSide == Buy {
+	if incomingOrder.side == Buy {
 		currentBestLevel = ob.lowestAsk
 	} else {
 		currentBestLevel = ob.highestBid
 	}
 
 	if currentBestLevel == nil {
-		newOrder := ob.createOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
-		ob.AddOrder(newOrder)
+		ob.AddOrder(incomingOrder)
 	} else {
 		var currentLevel *Level
 		for true {
-			if incomingSide == Buy {
+			if incomingOrder.side == Buy {
 				currentLevel = ob.lowestAsk
-				if ob.lowestAsk == nil || incomingPrice < ob.lowestAsk.price {
+				if ob.lowestAsk == nil || incomingOrder.price < ob.lowestAsk.price {
 					break
 				}
 			} else {
 				currentLevel = ob.highestBid
-				if ob.highestBid == nil || incomingPrice > ob.highestBid.price {
+				if ob.highestBid == nil || incomingOrder.price > ob.highestBid.price {
 					break
 				}
 			}
 			existingOrder := currentLevel.headOrder
-			for existingOrder != nil && incomingRemaining > 0 {
-				if existingOrder.remaining <= incomingRemaining {
+			for existingOrder != nil && incomingOrder.remaining > 0 {
+				if existingOrder.remaining <= incomingOrder.remaining {
 					var trade Trade
-					if incomingSide == Buy {
+					if incomingOrder.side == Buy {
 						trade = Trade{
 							Price:    existingOrder.price,
 							Size:     existingOrder.remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  incomingOrderId,
+							BuyerID:  incomingOrder.id,
 							SellerID: existingOrder.id,
 						}
 					} else {
@@ -225,45 +226,45 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 							Size:     existingOrder.remaining,
 							Time:     time.Now().UTC(),
 							BuyerID:  existingOrder.id,
-							SellerID: incomingOrderId,
+							SellerID: incomingOrder.id,
 						}
 					}
 					ob.trades = append(ob.trades, trade)
 					Logger.Println(ob.GetTrades())
 
-					incomingRemaining -= existingOrder.remaining
+					incomingOrder.remaining -= existingOrder.remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
 				} else {
 					var trade Trade
-					if incomingSide == Buy {
+					if incomingOrder.side == Buy {
 						trade = Trade{
 							Price:    existingOrder.price,
-							Size:     incomingRemaining,
+							Size:     incomingOrder.remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  incomingOrderId,
+							BuyerID:  incomingOrder.id,
 							SellerID: existingOrder.id,
 						}
 					} else {
 						trade = Trade{
 							Price:    existingOrder.price,
-							Size:     incomingRemaining,
+							Size:     incomingOrder.remaining,
 							Time:     time.Now().UTC(),
 							BuyerID:  existingOrder.id,
-							SellerID: incomingOrderId,
+							SellerID: incomingOrder.id,
 						}
 					}
 					ob.trades = append(ob.trades, trade)
 					Logger.Println(ob.GetTrades())
 
-					existingOrder.parentLevel.volume -= incomingRemaining
-					existingOrder.remaining -= incomingRemaining
-					incomingRemaining = 0
+					existingOrder.parentLevel.volume -= incomingOrder.remaining
+					existingOrder.remaining -= incomingOrder.remaining
+					incomingOrder.remaining = 0
 				}
 			}
 
 			if currentLevel.count == 0 {
-				delete(ob.levels[incomingSide], currentLevel.price)
-				if incomingSide == Buy {
+				delete(ob.levels[incomingOrder.side], currentLevel.price)
+				if incomingOrder.side == Buy {
 					ob.lowestAsk = currentLevel.nextLevel
 					currentLevel = ob.lowestAsk
 				} else {
@@ -272,17 +273,16 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 				}
 			}
 
-			if incomingRemaining == 0 {
+			if incomingOrder.remaining == 0 {
 				break
 			}
 		}
 
-		if incomingRemaining > 0 {
-			newOrder := ob.createOrder(incomingOrderId, incomingSide, incomingPrice, incomingSize, incomingRemaining)
-			ob.AddOrder(newOrder)
+		if incomingOrder.remaining > 0 {
+			ob.AddOrder(incomingOrder)
 		}
 	}
-	return incomingOrderId
+	return incomingOrder.id
 }
 
 func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
