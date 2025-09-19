@@ -19,6 +19,11 @@ Build the image after running eval
 
 - K8s dashboard `minikube dashboard`
 
+ConfigMap:
+    kubectl create configmap logfile --from-literal=logfile=
+
+Restart deployment:
+    kubectl rollout restart deployment/kubernetes-limit-order-book
 
 Scale:
     kubectl scale deployments/kubernetes-limit-order-book --replicas=4
