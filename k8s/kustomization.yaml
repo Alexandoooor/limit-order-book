@@ -1,7 +1,2 @@
-# secretGenerator:
-# - name: postgres-pass
-#   literals:
-#   - password=YOUR_PASSWORD
 resources:
   - deployment-pv-trades.yaml
-  - deployment-postgres-trades.yaml

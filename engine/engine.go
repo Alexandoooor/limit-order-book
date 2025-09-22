@@ -3,10 +3,11 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"log"
 	"time"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 var Logger *log.Logger
@@ -17,18 +18,6 @@ type OrderBook struct {
 	lowestAsk  *Level
 	highestBid *Level
 	trades     []Trade
-}
-
-type Order struct {
-	id          uuid.UUID
-	side        Side
-	size        int
-	remaining   int
-	price       int
-	time        time.Time
-	nextOrder   *Order
-	prevOrder   *Order
-	parentLevel *Level
 }
 
 type Level struct {
@@ -57,8 +46,6 @@ func NewOrderBook() *OrderBook {
 		levels: levels,
 		orders: make(map[uuid.UUID]*Order),
 	}
-
-	ob.readTrades()
 
 	return ob
 }
@@ -347,7 +334,7 @@ func (ob *OrderBook) recordTrade(trade Trade) {
 	Logger.Println(ob.GetTrades())
 }
 
-func (ob *OrderBook) readTrades() {
+func (ob *OrderBook) ReadTrades() {
 	tradesFile := os.Getenv("TRADES")
 	if tradesFile == "" {
 		tradesFile = "/tmp/trades.json"
@@ -358,12 +345,12 @@ func (ob *OrderBook) readTrades() {
 		defer file.Close()
 		decoder := json.NewDecoder(file)
 		if err := decoder.Decode(&ob.trades); err != nil {
-			fmt.Println("Warning: could not decode trades file:", err)
+			Logger.Println("Warning: could not decode trades file:", err)
 		} else {
-			fmt.Printf("Loaded %d trades from %s\n", len(ob.trades), tradesFile)
+			Logger.Printf("Loaded %d trades from %s\n", len(ob.trades), tradesFile)
 		}
 	} else if !os.IsNotExist(err) {
-		fmt.Println("Warning: could not open trades file:", err)
+		Logger.Println("Warning: could not open trades file:", err)
 	}
 
 }
@@ -389,34 +376,6 @@ func (ob *OrderBook) dumpTrades() error {
 	return nil
 }
 
-func (o *Order) String() string {
-	var nextID, prevID string
-
-	if o.nextOrder != nil {
-		nextID = o.nextOrder.id.String()
-	} else {
-		nextID = "nil"
-	}
-
-	if o.prevOrder != nil {
-		prevID = o.prevOrder.id.String()
-	} else {
-		prevID = "nil"
-	}
-
-	return fmt.Sprintf(
-		"Order{\n\tid: %s\n\tside: %s\n\tsize: %d\n\tremaining: %d\n\tprice: %d\n\ttime: %s\n\tnextOrderId: %s\n\tprevOrderId: %s\n\t}\n",
-		o.id.String(),
-		o.side,
-		o.size,
-		o.remaining,
-		o.price,
-		o.time.Format(time.RFC3339Nano),
-		nextID,
-		prevID,
-	)
-}
-
 func (l *Level) String() string {
 	return fmt.Sprintf(
 		"Level{\n\tprice: %d\n\tvolume: %d\n\tcount: %d\n\tnextLevel: %+v\n\theadOrder: %+v\n\ttailOrder: %+v\n}\n",
@@ -426,17 +385,6 @@ func (l *Level) String() string {
 		l.nextLevel,
 		l.headOrder,
 		l.tailOrder,
-	)
-}
-
-func (t *Trade) String() string {
-	return fmt.Sprintf(
-		"Trade{\n\tprice: %d\n\tsize: %d\n\ttime: %s\n\tbuyerId: %s\n\tsellerId: %s\n\t}\n",
-		t.Price,
-		t.Size,
-		t.Time.Format(time.RFC3339Nano),
-		t.BuyerID,
-		t.SellerID,
 	)
 }
 

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: limit-order-book-pv-trades
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: limit-order-book
@@ -14,20 +14,10 @@ spec:
     spec:
       containers:
       - name: limit-order-book
-        image: limit-order-book:1.7
+        image: limit-order-book:1.10
         ports:
         - containerPort: 3000
         env:
-        - name: POSTGRES_DB
-          value: ps_db
-        - name: POSTGRES_USER
-          value: ps_user
-        - name: POSTGRES_PASSWORD
-          value: ps_pass
-        - name: POSTGRES_HOST
-          value: postgres
-        - name: POSTGRES_PORT
-          value: "5432"
         - name: LOGFILE
           valueFrom:
             configMapKeyRef:

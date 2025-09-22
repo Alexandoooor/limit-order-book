@@ -9,6 +9,7 @@ import (
 	"limit-order-book/engine"
 	"limit-order-book/web"
 	"log"
+	"os"
 	"net/http"
 )
 
@@ -31,12 +32,26 @@ type PlaceOrderRequest struct {
 
 func Serve(addr string, ob *engine.OrderBook) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		ob.ReadTrades()
 		view := engine.BuildOrderBookView(ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
 	})
 
 	http.HandleFunc("/headers", headers)
+
+	http.HandleFunc("/wipe", func(w http.ResponseWriter, r *http.Request) {
+		tradesFile := os.Getenv("TRADES")
+		if tradesFile == "" {
+			tradesFile = "/tmp/trades.json"
+
+		}
+		Logger.Printf("Wiping trades from %s\n", tradesFile)
+		err := os.WriteFile(tradesFile, []byte("[]"), 0644)
+		if err != nil {
+			panic(err)
+		}
+	})
 
 	http.HandleFunc("/ob", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, ob.String())
