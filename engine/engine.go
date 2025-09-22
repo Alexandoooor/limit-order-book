@@ -1,10 +1,12 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"log"
 	"time"
+	"os"
 )
 
 var Logger *log.Logger
@@ -38,14 +40,6 @@ type Level struct {
 	tailOrder *Order
 }
 
-type Trade struct {
-	Price    int       `json:"price"`
-	Size     int       `json:"size"`
-	Time     time.Time `json:"time"`
-	BuyerID  uuid.UUID `json:"buyerId"`
-	SellerID uuid.UUID `json:"sellerId"`
-}
-
 type Side int
 
 const (
@@ -63,6 +57,9 @@ func NewOrderBook() *OrderBook {
 		levels: levels,
 		orders: make(map[uuid.UUID]*Order),
 	}
+
+	ob.readTrades()
+
 	return ob
 }
 
@@ -229,8 +226,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 							SellerID: incomingOrder.id,
 						}
 					}
-					ob.trades = append(ob.trades, trade)
-					Logger.Println(ob.GetTrades())
+					ob.recordTrade(trade)
 
 					incomingOrder.remaining -= existingOrder.remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
@@ -253,8 +249,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 							SellerID: incomingOrder.id,
 						}
 					}
-					ob.trades = append(ob.trades, trade)
-					Logger.Println(ob.GetTrades())
+					ob.recordTrade(trade)
 
 					existingOrder.parentLevel.volume -= incomingOrder.remaining
 					existingOrder.remaining -= incomingOrder.remaining
@@ -344,6 +339,54 @@ func (ob *OrderBook) GetLevel(side Side, price int) *Level {
 		return val
 	}
 	return &Level{}
+}
+
+func (ob *OrderBook) recordTrade(trade Trade) {
+	ob.trades = append(ob.trades, trade)
+	ob.dumpTrades()
+	Logger.Println(ob.GetTrades())
+}
+
+func (ob *OrderBook) readTrades() {
+	tradesFile := os.Getenv("TRADES")
+	if tradesFile == "" {
+		tradesFile = "/tmp/trades.json"
+	}
+
+	file, err := os.Open(tradesFile)
+	if err == nil {
+		defer file.Close()
+		decoder := json.NewDecoder(file)
+		if err := decoder.Decode(&ob.trades); err != nil {
+			fmt.Println("Warning: could not decode trades file:", err)
+		} else {
+			fmt.Printf("Loaded %d trades from %s\n", len(ob.trades), tradesFile)
+		}
+	} else if !os.IsNotExist(err) {
+		fmt.Println("Warning: could not open trades file:", err)
+	}
+
+}
+
+func (ob *OrderBook) dumpTrades() error {
+	tradesFile := os.Getenv("TRADES")
+	if tradesFile == "" {
+		tradesFile = "/tmp/trades.json"
+	}
+
+	file, err := os.Create(tradesFile)
+	if err != nil {
+		return fmt.Errorf("cannot create file: %w", err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(ob.trades); err != nil {
+		return fmt.Errorf("cannot encode trades: %w", err)
+	}
+
+	return nil
 }
 
 func (o *Order) String() string {

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: limit-order-book-pv-logs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernetes-limit-order-book
+  template:
+    metadata:
+      labels:
+        app: kubernetes-limit-order-book
+    spec:
+      containers:
+      - name: limit-order-book
+        image: limit-order-book:1.3
+        ports:
+        - containerPort: 3000
+        env:
+        - name: LOGFILE
+          value: /app/logs/app.log  # Updated to use the mounted volume
+        volumeMounts:
+        - name: log-storage
+          mountPath: /app/logs
+      volumes:
+      - name: log-storage
+        persistentVolumeClaim:
+          claimName: log-pvc   # PVC name to be created separately
