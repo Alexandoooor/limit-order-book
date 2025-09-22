@@ -14,10 +14,20 @@ spec:
     spec:
       containers:
       - name: limit-order-book
-        image: limit-order-book:1.5
+        image: limit-order-book:1.7
         ports:
         - containerPort: 3000
         env:
+        - name: POSTGRES_DB
+          value: ps_db
+        - name: POSTGRES_USER
+          value: ps_user
+        - name: POSTGRES_PASSWORD
+          value: ps_pass
+        - name: POSTGRES_HOST
+          value: postgres
+        - name: POSTGRES_PORT
+          value: "5432"
         - name: LOGFILE
           valueFrom:
             configMapKeyRef:
@@ -34,4 +44,30 @@ spec:
       volumes:
       - name: trade-storage
         persistentVolumeClaim:
-          claimName: trade-pvc   # PVC name to be created separately
+          claimName: trade-pvc
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: trade-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /mnt/data/trades  # path on your node
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trade-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: manual  # Make sure this matches your PV, or omit for default
