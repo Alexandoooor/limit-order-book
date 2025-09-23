@@ -32,7 +32,10 @@ type PlaceOrderRequest struct {
 
 func Serve(addr string, ob *engine.OrderBook) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		ob.ReadTrades()
+		err := ob.LoadFromDB()
+		if err != nil {
+			Logger.Fatal(err)
+		}
 		view := engine.BuildOrderBookView(ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)

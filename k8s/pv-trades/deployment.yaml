@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: limit-order-book-pv-trades
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: limit-order-book
+  template:
+    metadata:
+      labels:
+        app: limit-order-book
+    spec:
+      containers:
+        - name: limit-order-book
+          image: limit-order-book:1.10
+          ports:
+            - containerPort: 3000
+          env:
+            - name: LOGFILE
+              valueFrom:
+                configMapKeyRef:
+                  key: logfile
+                  name: logfile
+            - name: TRADES
+              valueFrom:
+                configMapKeyRef:
+                  key: trades
+                  name: trades
+          volumeMounts:
+            - name: trade-storage
+              mountPath: /app/trades
+      volumes:
+        - name: trade-storage
+          persistentVolumeClaim:
+            claimName: trade-pvc

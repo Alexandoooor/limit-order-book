@@ -22,16 +22,16 @@ func TestAddingOrders(t *testing.T) {
 		o := ob.createOrder(uuid.New(), Buy, x, expectedSize, expectedSize)
 		id := ob.AddOrder(o)
 
-		if ob.orders[id].price != x {
-			t.Fatalf("tests - order.price wrong. expected=%+v, got=%+v", x, ob.orders[id].price)
+		if ob.orders[id].Price != x {
+			t.Fatalf("tests - order.price wrong. expected=%+v, got=%+v", x, ob.orders[id].Price)
 		}
 
-		if ob.orders[id].side != Buy {
-			t.Fatalf("tests - order.side wrong. expected=%+v, got=%+v", Buy, ob.orders[id].side)
+		if ob.orders[id].Side != Buy {
+			t.Fatalf("tests - order.side wrong. expected=%+v, got=%+v", Buy, ob.orders[id].Side)
 		}
 
-		if ob.orders[id].size != expectedSize {
-			t.Fatalf("tests - order.size wrong. expected=%+v, got=%+v", expectedSize, ob.orders[id].size)
+		if ob.orders[id].Size != expectedSize {
+			t.Fatalf("tests - order.size wrong. expected=%+v, got=%+v", expectedSize, ob.orders[id].Size)
 		}
 	}
 }
@@ -46,8 +46,8 @@ func TestHighestBid(t *testing.T) {
 	for x := 88; x <= 92; x++ {
 		o := ob.createOrder(uuid.New(), Buy, x, 1, 1)
 		ob.AddOrder(o)
-		if ob.highestBid.price != x {
-			t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", x, ob.highestBid.price)
+		if ob.highestBid.Price != x {
+			t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", x, ob.highestBid.Price)
 		}
 	}
 
@@ -55,16 +55,16 @@ func TestHighestBid(t *testing.T) {
 	ob.AddOrder(o)
 
 	expectedhighestBid := 92
-	if ob.highestBid.price != expectedhighestBid {
-		t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", expectedhighestBid, ob.highestBid.price)
+	if ob.highestBid.Price != expectedhighestBid {
+		t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", expectedhighestBid, ob.highestBid.Price)
 	}
 
 	o1 := ob.createOrder(uuid.New(), Buy, 999, 1, 1)
 	ob.AddOrder(o1)
 
 	expectedprice := 999
-	if ob.highestBid.price != expectedprice {
-		t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", expectedprice, ob.highestBid.price)
+	if ob.highestBid.Price != expectedprice {
+		t.Fatalf("tests - highestBid wrong. expected=%+v, got=%+v", expectedprice, ob.highestBid.Price)
 	}
 
 }
@@ -80,8 +80,8 @@ func TestLowestAsk(t *testing.T) {
 	for x := 88; x <= 92; x++ {
 		o := ob.createOrder(uuid.New(), Sell, x, 1, 1)
 		ob.AddOrder(o)
-		if ob.lowestAsk.price != expectedlowestAsk {
-			t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", expectedlowestAsk, ob.lowestAsk.price)
+		if ob.lowestAsk.Price != expectedlowestAsk {
+			t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", expectedlowestAsk, ob.lowestAsk.Price)
 		}
 	}
 
@@ -89,8 +89,8 @@ func TestLowestAsk(t *testing.T) {
 	for x := 92; x >= 88; x-- {
 		o := ob.createOrder(uuid.New(), Sell, x, 1, 1)
 		ob.AddOrder(o)
-		if ob.lowestAsk.price != x {
-			t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", x, ob.lowestAsk.price)
+		if ob.lowestAsk.Price != x {
+			t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", x, ob.lowestAsk.Price)
 		}
 	}
 
@@ -98,8 +98,8 @@ func TestLowestAsk(t *testing.T) {
 	o := ob.createOrder(uuid.New(), Sell, 1, 1, 1)
 	ob.AddOrder(o)
 	expectedlowestAsk = 1
-	if ob.lowestAsk.price != expectedlowestAsk {
-		t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", expectedlowestAsk, ob.lowestAsk.price)
+	if ob.lowestAsk.Price != expectedlowestAsk {
+		t.Fatalf("tests - lowestAsk wrong. expected=%+v, got=%+v", expectedlowestAsk, ob.lowestAsk.Price)
 	}
 
 }
@@ -120,12 +120,12 @@ func TestMultiOrderLevel(t *testing.T) {
 	level := ob.levels[Buy][randomprice]
 
 	expectedHead := &orders[0]
-	if level.headOrder.id != expectedHead.id {
+	if level.headOrder.Id != expectedHead.Id {
 		t.Fatalf("tests - headOrder wrong. expected=%+v, got=%+v", expectedHead, level.headOrder)
 	}
 
 	expectedTail := &orders[n-1]
-	if level.tailOrder.id != expectedTail.id {
+	if level.tailOrder.Id != expectedTail.Id {
 		t.Fatalf("tests - tailOrder wrong. expected=%+v, got=%+v", expectedTail, level.headOrder)
 	}
 
@@ -133,12 +133,12 @@ func TestMultiOrderLevel(t *testing.T) {
 	for x := range 5 {
 		expectedVolume += randomprice * (x + 1)
 	}
-	if level.volume != expectedVolume {
-		t.Fatalf("tests - volume wrong. expected=%+v, got=%+v", expectedVolume, level.volume)
+	if level.Volume != expectedVolume {
+		t.Fatalf("tests - volume wrong. expected=%+v, got=%+v", expectedVolume, level.Volume)
 	}
 
-	if level.count != n {
-		t.Fatalf("tests - count wrong. expected=%+v, got=%+v", n, level.count)
+	if level.Count != n {
+		t.Fatalf("tests - count wrong. expected=%+v, got=%+v", n, level.Count)
 	}
 }
 
@@ -154,8 +154,8 @@ func TestRemoveTail(t *testing.T) {
 	ob.RemoveOrder(*order)
 
 	level := ob.levels[Buy][1337]
-	if level.tailOrder.id != id0 {
-		t.Fatalf("tests - tail wrong. expected=%+v, got=%+v", id0, level.tailOrder.id)
+	if level.tailOrder.Id != id0 {
+		t.Fatalf("tests - tail wrong. expected=%+v, got=%+v", id0, level.tailOrder.Id)
 	}
 }
 
@@ -172,8 +172,8 @@ func TestRemoveHead(t *testing.T) {
 
 	// level := ob.levels[Buy][7331]
 	level := ob.levels[Buy][7331]
-	if level.headOrder.id != id1 {
-		t.Fatalf("tests - head wrong. expected=%+v, got=%+v", id1, level.headOrder.id)
+	if level.headOrder.Id != id1 {
+		t.Fatalf("tests - head wrong. expected=%+v, got=%+v", id1, level.headOrder.Id)
 	}
 }
 
@@ -191,12 +191,12 @@ func TestRemoveMiddle(t *testing.T) {
 	order := ob.orders[id1]
 	ob.RemoveOrder(*order)
 
-	if ob.orders[id0].nextOrder.id != id2 {
-		t.Fatalf("tests - first.nextOrder wrong. expected=%+v, got=%+v", id2, ob.orders[id0].nextOrder.id)
+	if ob.orders[id0].nextOrder.Id != id2 {
+		t.Fatalf("tests - first.nextOrder wrong. expected=%+v, got=%+v", id2, ob.orders[id0].nextOrder.Id)
 	}
 
-	if ob.orders[id2].prevOrder.id != id0 {
-		t.Fatalf("tests - last.prevOrder wrong. expected=%+v, got=%+v", id0, ob.orders[id2].prevOrder.id)
+	if ob.orders[id2].prevOrder.Id != id0 {
+		t.Fatalf("tests - last.prevOrder wrong. expected=%+v, got=%+v", id0, ob.orders[id2].prevOrder.Id)
 	}
 }
 
@@ -273,9 +273,9 @@ func TestProcessPartialOrder(t *testing.T) {
 	o1 := ob.orders[id1]
 
 	expectedRemaining := 1
-	if o1.remaining != expectedRemaining {
+	if o1.Remaining != expectedRemaining {
 		t.Fatalf("tests - incorrect remaning size of partially filled order. expected=%d, got=%d",
-			expectedRemaining, o1.remaining)
+			expectedRemaining, o1.Remaining)
 	}
 
 	if o0 != nil {
@@ -324,8 +324,8 @@ func TestProcessMultiLevelOrder(t *testing.T) {
 	id0 := ob.ProcessOrder(Buy, 42, 3)
 	id1 := ob.ProcessOrder(Sell, 40, 2)
 
-	if ob.orders[id0].remaining != 1 {
-		t.Fatalf("tests - order 0 should be partially filled."+" expected=%d, got=%+v", 1, ob.orders[id0].remaining)
+	if ob.orders[id0].Remaining != 1 {
+		t.Fatalf("tests - order 0 should be partially filled."+" expected=%d, got=%+v", 1, ob.orders[id0].Remaining)
 	}
 
 	id2 := ob.ProcessOrder(Sell, 41, 1)
@@ -369,8 +369,8 @@ func TestProcessMultiLevelOrder2(t *testing.T) {
 	id0 := ob.ProcessOrder(Sell, 40, 2)
 	id1 := ob.ProcessOrder(Buy, 42, 3)
 
-	if ob.orders[id1].remaining != 1 {
-		t.Fatalf("tests - order 1 should be partially filled."+" expected=%d, got=%+v", 1, ob.orders[id1].remaining)
+	if ob.orders[id1].Remaining != 1 {
+		t.Fatalf("tests - order 1 should be partially filled."+" expected=%d, got=%+v", 1, ob.orders[id1].Remaining)
 	}
 
 	id2 := ob.ProcessOrder(Sell, 41, 1)
@@ -501,10 +501,10 @@ func TestProcessTrade3(t *testing.T) {
 
 	for _, expectedOrder := range expectedRemainingOrders {
 		actualOrder := ob.orders[orderIDs[1]]
-		if actualOrder.remaining != expectedOrder.expectedRemaining {
+		if actualOrder.Remaining != expectedOrder.expectedRemaining {
 			t.Fatalf(
 				"tests - wrong remaining size. expected=%+v, got=%+v",
-				expectedOrder.expectedRemaining, actualOrder.remaining)
+				expectedOrder.expectedRemaining, actualOrder.Remaining)
 		}
 	}
 }

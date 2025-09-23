@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -18,15 +19,7 @@ type OrderBook struct {
 	lowestAsk  *Level
 	highestBid *Level
 	trades     []Trade
-}
-
-type Level struct {
-	price     int
-	volume    int
-	count     int
-	nextLevel *Level
-	headOrder *Order
-	tailOrder *Order
+	db         *sql.DB
 }
 
 type Side int
@@ -36,7 +29,14 @@ const (
 	Sell
 )
 
-func NewOrderBook() *OrderBook {
+func (s Side) String() string {
+	if s == Buy {
+		return "BUY"
+	}
+	return "SELL"
+}
+
+func NewOrderBook(db *sql.DB) *OrderBook {
 	levels := map[Side]map[int]*Level{
 		Buy:  make(map[int]*Level),
 		Sell: make(map[int]*Level),
@@ -45,6 +45,7 @@ func NewOrderBook() *OrderBook {
 	ob := &OrderBook{
 		levels: levels,
 		orders: make(map[uuid.UUID]*Order),
+		db: db,
 	}
 
 	return ob
@@ -52,9 +53,9 @@ func NewOrderBook() *OrderBook {
 
 func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	newLevel := &Level{
-		price:     order.price,
-		volume:    order.remaining,
-		count:     1,
+		Price:     order.Price,
+		Volume:    order.Remaining,
+		Count:     1,
 		headOrder: order,
 		tailOrder: order,
 	}
@@ -68,12 +69,12 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	case Buy:
 		if ob.highestBid == nil {
 			ob.highestBid = newLevel
-		} else if newLevel.price > ob.highestBid.price {
+		} else if newLevel.Price > ob.highestBid.Price {
 			newLevel.nextLevel = ob.highestBid
 			ob.highestBid = newLevel
 		} else {
 			currentBid := ob.highestBid
-			for currentBid.nextLevel != nil && newLevel.price < currentBid.nextLevel.price {
+			for currentBid.nextLevel != nil && newLevel.Price < currentBid.nextLevel.Price {
 				currentBid = currentBid.nextLevel
 			}
 			newLevel.nextLevel = currentBid.nextLevel
@@ -82,12 +83,12 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	case Sell:
 		if ob.lowestAsk == nil {
 			ob.lowestAsk = newLevel
-		} else if newLevel.price < ob.lowestAsk.price {
+		} else if newLevel.Price < ob.lowestAsk.Price {
 			newLevel.nextLevel = ob.lowestAsk
 			ob.lowestAsk = newLevel
 		} else {
 			currentAsk := ob.lowestAsk
-			for currentAsk.nextLevel != nil && newLevel.price > currentAsk.nextLevel.price {
+			for currentAsk.nextLevel != nil && newLevel.Price > currentAsk.nextLevel.Price {
 				currentAsk = currentAsk.nextLevel
 			}
 			newLevel.nextLevel = currentAsk.nextLevel
@@ -100,44 +101,46 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 
 func (ob *OrderBook) createOrder(id uuid.UUID, side Side, price int, size int, remaining int) Order {
 	return Order{
-		id:        id,
-		side:      side,
-		size:      size,
-		remaining: remaining,
-		price:     price,
-		time:      time.Now().UTC(),
+		Id:        id,
+		Side:      side,
+		Size:      size,
+		Remaining: remaining,
+		Price:     price,
+		Time:      time.Now().UTC(),
 	}
 }
 
 func (ob *OrderBook) AddOrder(order Order) uuid.UUID {
-	level, ok := ob.levels[order.side][order.price]
+	level, ok := ob.levels[order.Side][order.Price]
 	if ok {
 		order.parentLevel = level
 		order.prevOrder = level.tailOrder
 		level.tailOrder.nextOrder = &order
 		level.tailOrder = &order
-		level.volume += order.remaining
-		level.count++
+		level.Volume += order.Remaining
+		level.Count++
 	} else {
-		newLevel := ob.NewLevel(&order, order.side)
-		ob.levels[order.side][newLevel.price] = newLevel
+		newLevel := ob.NewLevel(&order, order.Side)
+		ob.levels[order.Side][newLevel.Price] = newLevel
 	}
 
-	ob.orders[order.id] = &order
-	return order.id
+	ob.orders[order.Id] = &order
+	ob.DumpOrders()
+	return order.Id
 
 }
 
 func (ob *OrderBook) RemoveOrder(order Order) *Order {
-	delete(ob.orders, order.id)
+	delete(ob.orders, order.Id)
+	ob.DumpOrders()
 	parentLevel := order.parentLevel
-	parentLevel.volume -= order.remaining
-	parentLevel.count--
+	parentLevel.Volume -= order.Remaining
+	parentLevel.Count--
 
-	if parentLevel.count > 0 {
-		if parentLevel.headOrder.id == order.id {
+	if parentLevel.Count > 0 {
+		if parentLevel.headOrder.Id == order.Id {
 			parentLevel.headOrder = order.nextOrder
-		} else if parentLevel.tailOrder.id == order.id {
+		} else if parentLevel.tailOrder.Id == order.Id {
 			parentLevel.tailOrder = order.prevOrder
 		} else {
 			A := order.prevOrder
@@ -147,8 +150,8 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 		}
 		return parentLevel.headOrder
 	} else {
-		delete(ob.levels[order.side], order.parentLevel.price)
-		if order.side == Buy {
+		delete(ob.levels[order.Side], order.parentLevel.Price)
+		if order.Side == Buy {
 			if ob.highestBid == parentLevel {
 				ob.highestBid = parentLevel.nextLevel
 			}
@@ -170,7 +173,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 
 	var currentBestLevel *Level
 
-	if incomingOrder.side == Buy {
+	if incomingOrder.Side == Buy {
 		currentBestLevel = ob.lowestAsk
 	} else {
 		currentBestLevel = ob.highestBid
@@ -181,72 +184,72 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 	} else {
 		var currentLevel *Level
 		for true {
-			if incomingOrder.side == Buy {
+			if incomingOrder.Side == Buy {
 				currentLevel = ob.lowestAsk
-				if ob.lowestAsk == nil || incomingOrder.price < ob.lowestAsk.price {
+				if ob.lowestAsk == nil || incomingOrder.Price < ob.lowestAsk.Price {
 					break
 				}
 			} else {
 				currentLevel = ob.highestBid
-				if ob.highestBid == nil || incomingOrder.price > ob.highestBid.price {
+				if ob.highestBid == nil || incomingOrder.Price > ob.highestBid.Price {
 					break
 				}
 			}
 			existingOrder := currentLevel.headOrder
-			for existingOrder != nil && incomingOrder.remaining > 0 {
-				if existingOrder.remaining <= incomingOrder.remaining {
+			for existingOrder != nil && incomingOrder.Remaining > 0 {
+				if existingOrder.Remaining <= incomingOrder.Remaining {
 					var trade Trade
-					if incomingOrder.side == Buy {
+					if incomingOrder.Side == Buy {
 						trade = Trade{
-							Price:    existingOrder.price,
-							Size:     existingOrder.remaining,
+							Price:    existingOrder.Price,
+							Size:     existingOrder.Remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  incomingOrder.id,
-							SellerID: existingOrder.id,
+							BuyerID:  incomingOrder.Id,
+							SellerID: existingOrder.Id,
 						}
 					} else {
 						trade = Trade{
-							Price:    existingOrder.price,
-							Size:     existingOrder.remaining,
+							Price:    existingOrder.Price,
+							Size:     existingOrder.Remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  existingOrder.id,
-							SellerID: incomingOrder.id,
+							BuyerID:  existingOrder.Id,
+							SellerID: incomingOrder.Id,
 						}
 					}
 					ob.recordTrade(trade)
 
-					incomingOrder.remaining -= existingOrder.remaining
+					incomingOrder.Remaining -= existingOrder.Remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
 				} else {
 					var trade Trade
-					if incomingOrder.side == Buy {
+					if incomingOrder.Side == Buy {
 						trade = Trade{
-							Price:    existingOrder.price,
-							Size:     incomingOrder.remaining,
+							Price:    existingOrder.Price,
+							Size:     incomingOrder.Remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  incomingOrder.id,
-							SellerID: existingOrder.id,
+							BuyerID:  incomingOrder.Id,
+							SellerID: existingOrder.Id,
 						}
 					} else {
 						trade = Trade{
-							Price:    existingOrder.price,
-							Size:     incomingOrder.remaining,
+							Price:    existingOrder.Price,
+							Size:     incomingOrder.Remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  existingOrder.id,
-							SellerID: incomingOrder.id,
+							BuyerID:  existingOrder.Id,
+							SellerID: incomingOrder.Id,
 						}
 					}
 					ob.recordTrade(trade)
 
-					existingOrder.parentLevel.volume -= incomingOrder.remaining
-					existingOrder.remaining -= incomingOrder.remaining
-					incomingOrder.remaining = 0
+					existingOrder.parentLevel.Volume -= incomingOrder.Remaining
+					existingOrder.Remaining -= incomingOrder.Remaining
+					incomingOrder.Remaining = 0
 				}
 			}
 
-			if currentLevel.count == 0 {
-				delete(ob.levels[incomingOrder.side], currentLevel.price)
-				if incomingOrder.side == Buy {
+			if currentLevel.Count == 0 {
+				delete(ob.levels[incomingOrder.Side], currentLevel.Price)
+				if incomingOrder.Side == Buy {
 					ob.lowestAsk = currentLevel.nextLevel
 					currentLevel = ob.lowestAsk
 				} else {
@@ -255,16 +258,16 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 				}
 			}
 
-			if incomingOrder.remaining == 0 {
+			if incomingOrder.Remaining == 0 {
 				break
 			}
 		}
 
-		if incomingOrder.remaining > 0 {
+		if incomingOrder.Remaining > 0 {
 			ob.AddOrder(incomingOrder)
 		}
 	}
-	return incomingOrder.id
+	return incomingOrder.Id
 }
 
 func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
@@ -277,7 +280,7 @@ func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
 }
 
 func (o Order) Equals(other Order) bool {
-	return o.id == other.id
+	return o.Id == other.Id
 }
 
 func (ob *OrderBook) PrintOrder(id uuid.UUID) {
@@ -330,67 +333,130 @@ func (ob *OrderBook) GetLevel(side Side, price int) *Level {
 
 func (ob *OrderBook) recordTrade(trade Trade) {
 	ob.trades = append(ob.trades, trade)
-	ob.dumpTrades()
+	ob.DumpTrades()
+	err := ob.SaveToDB()
+	if err != nil {
+		Logger.Fatal(err)
+	}
 	Logger.Println(ob.GetTrades())
 }
 
-func (ob *OrderBook) ReadTrades() {
-	tradesFile := os.Getenv("TRADES")
-	if tradesFile == "" {
-		tradesFile = "/tmp/trades.json"
-	}
-
-	file, err := os.Open(tradesFile)
-	if err == nil {
-		defer file.Close()
-		decoder := json.NewDecoder(file)
-		if err := decoder.Decode(&ob.trades); err != nil {
-			Logger.Println("Warning: could not decode trades file:", err)
-		} else {
-			Logger.Printf("Loaded %d trades from %s\n", len(ob.trades), tradesFile)
-		}
-	} else if !os.IsNotExist(err) {
-		Logger.Println("Warning: could not open trades file:", err)
-	}
-
+type jsonOrderBook struct {
+	Levels map[Side]map[int]*Level
+	Orders map[uuid.UUID]*Order
 }
 
-func (ob *OrderBook) dumpTrades() error {
-	tradesFile := os.Getenv("TRADES")
-	if tradesFile == "" {
-		tradesFile = "/tmp/trades.json"
+func (ob *OrderBook) DumpOrders() error {
+	filename := os.Getenv("ORDERBOOK")
+	if filename == "" {
+		filename = "/tmp/orderbook.json"
 	}
 
-	file, err := os.Create(tradesFile)
+	job := jsonOrderBook{
+		Orders: ob.orders,
+		Levels: ob.levels,
+	}
+
+	data, err := json.MarshalIndent(job, "", "  ")
 	if err != nil {
-		return fmt.Errorf("cannot create file: %w", err)
+		return err
 	}
-	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(ob.trades); err != nil {
-		return fmt.Errorf("cannot encode trades: %w", err)
+	return os.WriteFile(filename, data, 0644)
+}
+
+func (ob *OrderBook) LoadOrders() error {
+	filename := os.Getenv("ORDERBOOK")
+	if filename == "" {
+		filename = "/tmp/orderbook.json"
+	}
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	var job jsonOrderBook
+	if err := json.Unmarshal(data, &job); err != nil {
+		return err
+	}
+
+	ob.levels = job.Levels
+	ob.orders = job.Orders
+
+	return nil
+}
+
+func (ob *OrderBook) DumpTrades() error {
+	filename := os.Getenv("TRADES")
+	if filename == "" {
+		filename = "/tmp/trades.json"
+	}
+
+	data, err := json.MarshalIndent(ob.trades, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(filename, data, 0644)
+}
+
+func (ob *OrderBook) LoadTrades() error {
+	filename := os.Getenv("TRADES")
+	if filename == "" {
+		filename = "/tmp/trades.json"
+	}
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(data, &ob.trades); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (l *Level) String() string {
-	return fmt.Sprintf(
-		"Level{\n\tprice: %d\n\tvolume: %d\n\tcount: %d\n\tnextLevel: %+v\n\theadOrder: %+v\n\ttailOrder: %+v\n}\n",
-		l.price,
-		l.volume,
-		l.count,
-		l.nextLevel,
-		l.headOrder,
-		l.tailOrder,
-	)
+func (ob *OrderBook) SaveToDB() error {
+	tx, err := ob.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, _ = tx.Exec("DELETE FROM trades")
+
+	for _, trade := range ob.trades {
+		_, err := tx.Exec(
+			"INSERT INTO trades(price, size, time, buyerID, sellerID) VALUES(?, ?, ?, ?, ?)",
+			trade.Price, trade.Size, trade.Time, trade.BuyerID, trade.SellerID,
+		)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
-func (s Side) String() string {
-	if s == Buy {
-		return "BUY"
+func (ob *OrderBook) LoadFromDB() error {
+	ob.trades = []Trade{}
+
+	rows3, err := ob.db.Query("SELECT price, size, time, buyerID, sellerID FROM trades")
+	if err != nil {
+		return err
 	}
-	return "SELL"
+	defer rows3.Close()
+
+	for rows3.Next() {
+		var price, size int
+		var time time.Time
+		var buyerID, sellerID uuid.UUID
+		if err := rows3.Scan(&price, &size, &time, &buyerID, &sellerID); err != nil {
+			return err
+		}
+		ob.trades = append(ob.trades, Trade{Price: price, Size: size, Time: time, BuyerID: buyerID, SellerID: sellerID})
+	}
+
+	return nil
 }

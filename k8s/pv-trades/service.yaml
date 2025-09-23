@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: limit-order-book-pv-trades
+spec:
+  type: LoadBalancer
+  selector:
+    app: limit-order-book
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000

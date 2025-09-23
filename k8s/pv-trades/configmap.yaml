@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logfile
+  labels:
+    app: limit-order-book
+data:
+  logfile: ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trades
+  labels:
+    app: limit-order-book
+data:
+  trades: "app/trades/trades.json"

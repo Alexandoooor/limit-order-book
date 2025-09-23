@@ -23,14 +23,14 @@ func BuildOrderBookView(ob *OrderBook) OrderBookView {
 	for price, level := range ob.levels[Buy] {
 		view.Bids = append(view.Bids, LevelView{
 			Price:  price,
-			Volume: level.volume,
+			Volume: level.Volume,
 		})
 	}
 
 	for price, level := range ob.levels[Sell] {
 		view.Asks = append(view.Asks, LevelView{
 			Price:  price,
-			Volume: level.volume,
+			Volume: level.Volume,
 		})
 	}
 
