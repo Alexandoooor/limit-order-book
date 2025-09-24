@@ -18,6 +18,7 @@ type LevelDTO struct {
 type OrderBookDTO struct {
 	Levels     map[Side]map[int]*LevelDTO `json:"levels"`
 	Orders 	   map[uuid.UUID]*OrderDTO `json:"orders"`
+	Trades     []Trade `json:"trades"`
 }
 
 type OrderDTO struct {
@@ -35,6 +36,7 @@ func (ob *OrderBook) ToDTO() *OrderBookDTO {
 	dto := &OrderBookDTO{
 		Levels: map[Side]map[int]*LevelDTO{Buy: {}, Sell: {}},
 		Orders: make(map[uuid.UUID]*OrderDTO),
+		Trades: ob.trades,
 	}
 
 	for id, o := range ob.orders {
@@ -80,6 +82,7 @@ func (dto *OrderBookDTO) ToOrderBook() *OrderBook {
 	ob := &OrderBook{
 		levels: map[Side]map[int]*Level{Buy: {}, Sell: {}},
 		orders: make(map[uuid.UUID]*Order),
+		trades: dto.Trades,
 	}
 
 	for id, odto := range dto.Orders {
@@ -148,7 +151,7 @@ func (dto *OrderBookDTO) ToOrderBook() *OrderBook {
 	return ob
 }
 
-func (ob *OrderBook) DumpOrders() error {
+func (ob *OrderBook) DumpOrderBook() error {
 	filename := os.Getenv("ORDERBOOK")
 	if filename == "" {
 		filename = "/tmp/orderbook.json"
@@ -163,7 +166,7 @@ func (ob *OrderBook) DumpOrders() error {
 	return os.WriteFile(filename, data, 0644)
 }
 
-func (ob *OrderBook) LoadOrders() error {
+func (ob *OrderBook) LoadOrderBook() error {
 	filename := os.Getenv("ORDERBOOK")
 	if filename == "" {
 		filename = "/tmp/orderbook.json"
@@ -181,37 +184,7 @@ func (ob *OrderBook) LoadOrders() error {
 	ob.orders = restoredBook.orders
 	ob.highestBid = restoredBook.highestBid
 	ob.lowestAsk = restoredBook.lowestAsk
-
-	return nil
-}
-
-func (ob *OrderBook) DumpTrades() error {
-	filename := os.Getenv("TRADES")
-	if filename == "" {
-		filename = "/tmp/trades.json"
-	}
-
-	data, err := json.MarshalIndent(ob.trades, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filename, data, 0644)
-}
-
-func (ob *OrderBook) LoadTrades() error {
-	filename := os.Getenv("TRADES")
-	if filename == "" {
-		filename = "/tmp/trades.json"
-	}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(data, &ob.trades); err != nil {
-		return err
-	}
+	ob.trades = restoredBook.trades
 
 	return nil
 }

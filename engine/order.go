@@ -19,6 +19,10 @@ type Order struct {
 	parentLevel *Level
 }
 
+func (o Order) Equals(other Order) bool {
+	return o.Id == other.Id
+}
+
 func (o *Order) String() string {
 	var nextID, prevID string
 

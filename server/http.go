@@ -7,21 +7,17 @@ import (
 	"html/template"
 	"io"
 	"limit-order-book/engine"
+	"limit-order-book/util"
 	"limit-order-book/web"
 	"log"
-	"os"
 	"net/http"
 )
 
 var Logger *log.Logger
 
-func headers(w http.ResponseWriter, req *http.Request) {
-
-	for name, headers := range req.Header {
-		for _, h := range headers {
-			fmt.Fprintf(w, "%v: %v\n", name, h)
-		}
-	}
+type Server struct {
+	addr string
+	ob   *engine.OrderBook
 }
 
 type PlaceOrderRequest struct {
@@ -30,11 +26,25 @@ type PlaceOrderRequest struct {
 	Size  int    `json:"size"`
 }
 
-func Serve(addr string, ob *engine.OrderBook) error {
+func NewServer(addr string, ob *engine.OrderBook) *Server {
+	return &Server{
+		addr: addr,
+		ob: ob,
+	}
+}
+
+func headers(w http.ResponseWriter, req *http.Request) {
+	for name, headers := range req.Header {
+		for _, h := range headers {
+			fmt.Fprintf(w, "%v: %v\n", name, h)
+		}
+	}
+}
+
+func (s *Server) Serve() error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		ob.DumpOrders()
-		ob.DumpTrades()
-		view := engine.BuildOrderBookView(ob)
+		s.ob.DumpOrderBook()
+		view := engine.BuildOrderBookView(s.ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
 	})
@@ -42,30 +52,12 @@ func Serve(addr string, ob *engine.OrderBook) error {
 	http.HandleFunc("/headers", headers)
 
 	http.HandleFunc("/wipe", func(w http.ResponseWriter, r *http.Request) {
-		tradesFile := os.Getenv("TRADES")
-		if tradesFile == "" {
-			tradesFile = "/tmp/trades.json"
-		}
-		Logger.Printf("Wiping trades from %s\n", tradesFile)
-		err := os.WriteFile(tradesFile, []byte("[]"), 0644)
-		if err != nil {
-			panic(err)
-		}
-
-		ordersFile := os.Getenv("ORDERS")
-		if ordersFile == "" {
-			ordersFile = "/tmp/orderbook.json"
-		}
-		Logger.Printf("Wiping orders from %s\n", ordersFile)
-		err = os.WriteFile(ordersFile, []byte("[]"), 0644)
-		if err != nil {
-			panic(err)
-		}
-		ob.ResetOrderBook()
+		util.WipeOrderBook()
+		s.ob.ResetOrderBook()
 	})
 
 	http.HandleFunc("/ob", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, ob.String())
+		fmt.Fprint(w, s.ob.String())
 	})
 
 	http.HandleFunc("/api/order", func(w http.ResponseWriter, r *http.Request) {
@@ -100,15 +92,15 @@ func Serve(addr string, ob *engine.OrderBook) error {
 			return
 		}
 
-		order := ob.ProcessOrder(side, req.Price, req.Size)
+		order := s.ob.ProcessOrder(side, req.Price, req.Size)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(order)
 
-		Logger.Println(ob)
-		Logger.Println(ob.GetLevel(side, req.Price))
+		Logger.Println(s.ob)
+		Logger.Println(s.ob.GetLevel(side, req.Price))
 	})
 
-	return http.ListenAndServe(addr, nil)
+	return http.ListenAndServe(s.addr, nil)
 
 }

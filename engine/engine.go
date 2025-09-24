@@ -162,7 +162,6 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 		}
 	}
 	return nil
-
 }
 
 func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incomingSize int) uuid.UUID {
@@ -278,14 +277,6 @@ func (ob *OrderBook) CancelOrder(id uuid.UUID) bool {
 	return true
 }
 
-func (o Order) Equals(other Order) bool {
-	return o.Id == other.Id
-}
-
-func (ob *OrderBook) PrintOrder(id uuid.UUID) {
-	fmt.Printf("%s\n", ob.orders[id])
-}
-
 func (ob *OrderBook) GetOrderBook() string {
 	if len(ob.orders) == 0 {
 		return ""
@@ -332,6 +323,5 @@ func (ob *OrderBook) GetLevel(side Side, price int) *Level {
 
 func (ob *OrderBook) recordTrade(trade Trade) {
 	ob.trades = append(ob.trades, trade)
-	ob.DumpTrades()
 	Logger.Println(ob.GetTrades())
 }
