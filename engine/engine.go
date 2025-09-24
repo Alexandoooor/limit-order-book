@@ -214,7 +214,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 							SellerID: incomingOrder.Id,
 						}
 					}
-					ob.recordTrade(trade)
+					ob.trades = append(ob.trades, trade)
 
 					incomingOrder.Remaining -= existingOrder.Remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
@@ -237,7 +237,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 							SellerID: incomingOrder.Id,
 						}
 					}
-					ob.recordTrade(trade)
+					ob.trades = append(ob.trades, trade)
 
 					existingOrder.parentLevel.Volume -= incomingOrder.Remaining
 					existingOrder.Remaining -= incomingOrder.Remaining
@@ -321,7 +321,48 @@ func (ob *OrderBook) GetLevel(side Side, price int) *Level {
 	return &Level{}
 }
 
-func (ob *OrderBook) recordTrade(trade Trade) {
-	ob.trades = append(ob.trades, trade)
-	Logger.Println(ob.GetTrades())
+func (ob *OrderBook) ToDTO() *OrderBookDTO {
+	dto := &OrderBookDTO{
+		Levels: map[Side]map[int]*LevelDTO{Buy: {}, Sell: {}},
+		Orders: make(map[uuid.UUID]*OrderDTO),
+		Trades: ob.trades,
+	}
+
+	for id, o := range ob.orders {
+		orderDTO := &OrderDTO{
+			Id:        o.Id,
+			Side:      o.Side,
+			Size:      o.Size,
+			Remaining: o.Remaining,
+			Price:     o.Price,
+			Time:      o.Time,
+		}
+		if o.nextOrder != nil {
+			orderDTO.NextID = &o.nextOrder.Id
+		}
+		if o.prevOrder != nil {
+			orderDTO.PrevID = &o.prevOrder.Id
+		}
+		dto.Orders[id] = orderDTO
+	}
+
+	for side := range ob.levels {
+		for price, lvl := range ob.levels[side] {
+			levelDTO := &LevelDTO{
+				Price:  lvl.Price,
+				Volume: lvl.Volume,
+				Count:  lvl.Count,
+				Orders: []uuid.UUID{},
+			}
+			for o := lvl.headOrder; o != nil; o = o.nextOrder {
+				levelDTO.Orders = append(levelDTO.Orders, o.Id)
+				if o == lvl.tailOrder {
+					break
+				}
+			}
+			dto.Levels[side][price] = levelDTO
+		}
+	}
+
+	return dto
 }

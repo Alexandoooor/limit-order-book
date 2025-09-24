@@ -1,8 +1,6 @@
 package engine
 
 import (
-	"encoding/json"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,52 +28,6 @@ type OrderDTO struct {
 	Time      time.Time `json:"time"`
 	NextID    *uuid.UUID `json:"next_id,omitempty"`
 	PrevID    *uuid.UUID `json:"prev_id,omitempty"`
-}
-
-func (ob *OrderBook) ToDTO() *OrderBookDTO {
-	dto := &OrderBookDTO{
-		Levels: map[Side]map[int]*LevelDTO{Buy: {}, Sell: {}},
-		Orders: make(map[uuid.UUID]*OrderDTO),
-		Trades: ob.trades,
-	}
-
-	for id, o := range ob.orders {
-		orderDTO := &OrderDTO{
-			Id:        o.Id,
-			Side:      o.Side,
-			Size:      o.Size,
-			Remaining: o.Remaining,
-			Price:     o.Price,
-			Time:      o.Time,
-		}
-		if o.nextOrder != nil {
-			orderDTO.NextID = &o.nextOrder.Id
-		}
-		if o.prevOrder != nil {
-			orderDTO.PrevID = &o.prevOrder.Id
-		}
-		dto.Orders[id] = orderDTO
-	}
-
-	for side := range ob.levels {
-		for price, lvl := range ob.levels[side] {
-			levelDTO := &LevelDTO{
-				Price:  lvl.Price,
-				Volume: lvl.Volume,
-				Count:  lvl.Count,
-				Orders: []uuid.UUID{},
-			}
-			for o := lvl.headOrder; o != nil; o = o.nextOrder {
-				levelDTO.Orders = append(levelDTO.Orders, o.Id)
-				if o == lvl.tailOrder {
-					break
-				}
-			}
-			dto.Levels[side][price] = levelDTO
-		}
-	}
-
-	return dto
 }
 
 func (dto *OrderBookDTO) ToOrderBook() *OrderBook {
@@ -149,42 +101,4 @@ func (dto *OrderBookDTO) ToOrderBook() *OrderBook {
 	}
 
 	return ob
-}
-
-func (ob *OrderBook) DumpOrderBook() error {
-	filename := os.Getenv("ORDERBOOK")
-	if filename == "" {
-		filename = "/tmp/orderbook.json"
-	}
-
-	dto := ob.ToDTO()
-	data, err := json.MarshalIndent(dto, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filename, data, 0644)
-}
-
-func (ob *OrderBook) LoadOrderBook() error {
-	filename := os.Getenv("ORDERBOOK")
-	if filename == "" {
-		filename = "/tmp/orderbook.json"
-	}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-
-	var dto2 OrderBookDTO
-	_ = json.Unmarshal(data, &dto2)
-	restoredBook := dto2.ToOrderBook()
-
-	ob.levels = restoredBook.levels
-	ob.orders = restoredBook.orders
-	ob.highestBid = restoredBook.highestBid
-	ob.lowestAsk = restoredBook.lowestAsk
-	ob.trades = restoredBook.trades
-
-	return nil
 }

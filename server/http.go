@@ -43,7 +43,7 @@ func headers(w http.ResponseWriter, req *http.Request) {
 
 func (s *Server) Serve() error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		s.ob.DumpOrderBook()
+		util.DumpOrderBook(s.ob)
 		view := engine.BuildOrderBookView(s.ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
@@ -52,8 +52,7 @@ func (s *Server) Serve() error {
 	http.HandleFunc("/headers", headers)
 
 	http.HandleFunc("/wipe", func(w http.ResponseWriter, r *http.Request) {
-		util.WipeOrderBook()
-		s.ob.ResetOrderBook()
+		util.ResetOrderBook(s.ob)
 	})
 
 	http.HandleFunc("/ob", func(w http.ResponseWriter, r *http.Request) {
