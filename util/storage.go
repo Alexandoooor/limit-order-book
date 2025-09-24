@@ -9,7 +9,7 @@ import (
 
 var Logger *log.Logger
 
-func ResetOrderBook(ob *engine.OrderBook) {
+func ResetOrderBook(ob *engine.OrderBook) error {
 	ob.ResetOrderBook()
 
 	ordersFile := os.Getenv("ORDERS")
@@ -18,9 +18,13 @@ func ResetOrderBook(ob *engine.OrderBook) {
 	}
 	Logger.Printf("Wiping orders from %s\n", ordersFile)
 	err := os.WriteFile(ordersFile, []byte("[]"), 0644)
+
 	if err != nil {
 		Logger.Printf("Failed to reset OrderBook: %s", err)
+		return err
 	}
+
+	return nil
 }
 
 func RestoreOrderBook() (*engine.OrderBook, error) {

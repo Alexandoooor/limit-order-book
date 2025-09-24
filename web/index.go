@@ -139,6 +139,13 @@ const IndexHTML = `<!doctype html>
 	button.submit.buy{background:linear-gradient(90deg, rgba(124,58,237,0.08), transparent); border-color: rgba(124,58,237,0.28); color:#7C3AED}
 	button:disabled{opacity:0.45; cursor:not-allowed}
 
+	button.wipe{
+	width:100%; max-width:200px; margin:0 auto; display:block;
+	padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); font-weight:600; font-size:10px; cursor:pointer;
+	background:var(--glass); color:inherit; text-align:center;
+	box-shadow: inset 0 0 0 0 transparent;
+	}
+
 	.hint{font-size:13px;color:var(--muted); text-align:center}
 
 	@media (max-width:900px){
@@ -151,7 +158,17 @@ const IndexHTML = `<!doctype html>
 </head>
 <body>
 <div class="card">
-	<h1>Limit Order Book</h1>
+
+	<div class="side-by-side">
+		<div>
+			<h1>Limit Order Book</h1>
+		</div>
+
+		<div>
+			<button type="button" id="wipe" class="wipe">Wipe OrderBook</button>
+		</div>
+	</div>
+
 	<h2>Place Order</h2>
 	<div class="container">
 		<div class="order-form">
@@ -188,9 +205,8 @@ const IndexHTML = `<!doctype html>
 		      </div>
 
 		      <div>
-			<button type="submit" id="submitBtn" class="submit buy order-type buy">Place Order</button>
+			<button type="submit" id="submit" class="submit buy order-type buy">Place Order</button>
 		      </div>
-
 		    </form>
 		</div>
 
@@ -255,7 +271,6 @@ const IndexHTML = `<!doctype html>
 		</div>
 	</div>
 
-
 	<footer>
 		<div class="hint">New Connected Pod: {{.Hostname}}</div>
 	</footer>
@@ -284,11 +299,26 @@ const IndexHTML = `<!doctype html>
 				body: JSON.stringify({side, price, size})
 			});
 			if (resp.ok) {
-				window.location.reload(); // reload to refresh order book
+				window.location.reload();
 			} else {
 				const text = await resp.text();
 				alert('Error: ' + text);
 			}
+		});
+		const wipe = document.getElementById('wipe')
+		wipe.addEventListener('click', async () => {
+		  if (!confirm("Are you sure you want to wipe all orders?")) return;
+
+		  const resp = await fetch('/api/wipe', {
+		    method: 'POST'
+		  });
+
+		  if (resp.ok) {
+		    window.location.reload();
+		  } else {
+		    const text = await resp.text();
+		    alert('Error: ' + text);
+		  }
 		});
 	</script>
 	</div>

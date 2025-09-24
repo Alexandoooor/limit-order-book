@@ -25,8 +25,9 @@ func main() {
 	restoredOrderBook, err := util.RestoreOrderBook()
 	if err != nil {
 		logger.Printf("Failed to restore OrderBook from storage. Continue with new OrderBook. %s", err)
+	} else {
+		ob = restoredOrderBook
 	}
-	ob = restoredOrderBook
 
 	logger.Printf("LimitOrderBook running on http://localhost%s\n", addr)
 	server := server.NewServer(addr, ob)
