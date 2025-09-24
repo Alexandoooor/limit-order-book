@@ -32,10 +32,8 @@ type PlaceOrderRequest struct {
 
 func Serve(addr string, ob *engine.OrderBook) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		err := ob.LoadFromDB()
-		if err != nil {
-			Logger.Fatal(err)
-		}
+		ob.DumpOrders()
+		ob.DumpTrades()
 		view := engine.BuildOrderBookView(ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
@@ -47,13 +45,23 @@ func Serve(addr string, ob *engine.OrderBook) error {
 		tradesFile := os.Getenv("TRADES")
 		if tradesFile == "" {
 			tradesFile = "/tmp/trades.json"
-
 		}
 		Logger.Printf("Wiping trades from %s\n", tradesFile)
 		err := os.WriteFile(tradesFile, []byte("[]"), 0644)
 		if err != nil {
 			panic(err)
 		}
+
+		ordersFile := os.Getenv("ORDERS")
+		if ordersFile == "" {
+			ordersFile = "/tmp/orderbook.json"
+		}
+		Logger.Printf("Wiping orders from %s\n", ordersFile)
+		err = os.WriteFile(ordersFile, []byte("[]"), 0644)
+		if err != nil {
+			panic(err)
+		}
+		ob.ResetOrderBook()
 	})
 
 	http.HandleFunc("/ob", func(w http.ResponseWriter, r *http.Request) {

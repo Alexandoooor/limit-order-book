@@ -38,3 +38,10 @@ Undo Rollout:
 Example:
     Starting the tunnel returns url `http://127.0.0.1:<PORT>`
     We can then access it like this: `curl http://127.0.0.1:<PORT>/<ENDPOINT>`
+
+---
+PostgreSQL:
+    kubectl exec -it postgres-6c87db7857-flkkh -- psql -U ps_user -d ps_db
+
+Inside psql:
+    ps_db=# SELECT * FROM trades;

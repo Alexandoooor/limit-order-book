@@ -5,9 +5,9 @@ import (
 )
 
 type Level struct {
-	Price     int `json:"price"`
-	Volume    int `json:"volume"`
-	Count     int `json:"count"`
+	Price     int
+	Volume    int
+	Count     int
 	nextLevel *Level
 	headOrder *Order
 	tailOrder *Order

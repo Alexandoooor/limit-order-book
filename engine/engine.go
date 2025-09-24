@@ -1,12 +1,9 @@
 package engine
 
 import (
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"time"
-	"os"
 
 	"github.com/google/uuid"
 )
@@ -19,7 +16,6 @@ type OrderBook struct {
 	lowestAsk  *Level
 	highestBid *Level
 	trades     []Trade
-	db         *sql.DB
 }
 
 type Side int
@@ -36,7 +32,7 @@ func (s Side) String() string {
 	return "SELL"
 }
 
-func NewOrderBook(db *sql.DB) *OrderBook {
+func NewOrderBook() *OrderBook {
 	levels := map[Side]map[int]*Level{
 		Buy:  make(map[int]*Level),
 		Sell: make(map[int]*Level),
@@ -45,10 +41,15 @@ func NewOrderBook(db *sql.DB) *OrderBook {
 	ob := &OrderBook{
 		levels: levels,
 		orders: make(map[uuid.UUID]*Order),
-		db: db,
 	}
 
 	return ob
+}
+
+func (ob *OrderBook) ResetOrderBook() {
+	ob.levels = map[Side]map[int]*Level{Buy: {}, Sell: {}}
+	ob.orders = make(map[uuid.UUID]*Order)
+	ob.trades = []Trade{}
 }
 
 func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
@@ -125,14 +126,12 @@ func (ob *OrderBook) AddOrder(order Order) uuid.UUID {
 	}
 
 	ob.orders[order.Id] = &order
-	ob.DumpOrders()
 	return order.Id
 
 }
 
 func (ob *OrderBook) RemoveOrder(order Order) *Order {
 	delete(ob.orders, order.Id)
-	ob.DumpOrders()
 	parentLevel := order.parentLevel
 	parentLevel.Volume -= order.Remaining
 	parentLevel.Count--
@@ -334,129 +333,5 @@ func (ob *OrderBook) GetLevel(side Side, price int) *Level {
 func (ob *OrderBook) recordTrade(trade Trade) {
 	ob.trades = append(ob.trades, trade)
 	ob.DumpTrades()
-	err := ob.SaveToDB()
-	if err != nil {
-		Logger.Fatal(err)
-	}
 	Logger.Println(ob.GetTrades())
-}
-
-type jsonOrderBook struct {
-	Levels map[Side]map[int]*Level
-	Orders map[uuid.UUID]*Order
-}
-
-func (ob *OrderBook) DumpOrders() error {
-	filename := os.Getenv("ORDERBOOK")
-	if filename == "" {
-		filename = "/tmp/orderbook.json"
-	}
-
-	job := jsonOrderBook{
-		Orders: ob.orders,
-		Levels: ob.levels,
-	}
-
-	data, err := json.MarshalIndent(job, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filename, data, 0644)
-}
-
-func (ob *OrderBook) LoadOrders() error {
-	filename := os.Getenv("ORDERBOOK")
-	if filename == "" {
-		filename = "/tmp/orderbook.json"
-	}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-
-	var job jsonOrderBook
-	if err := json.Unmarshal(data, &job); err != nil {
-		return err
-	}
-
-	ob.levels = job.Levels
-	ob.orders = job.Orders
-
-	return nil
-}
-
-func (ob *OrderBook) DumpTrades() error {
-	filename := os.Getenv("TRADES")
-	if filename == "" {
-		filename = "/tmp/trades.json"
-	}
-
-	data, err := json.MarshalIndent(ob.trades, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filename, data, 0644)
-}
-
-func (ob *OrderBook) LoadTrades() error {
-	filename := os.Getenv("TRADES")
-	if filename == "" {
-		filename = "/tmp/trades.json"
-	}
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(data, &ob.trades); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (ob *OrderBook) SaveToDB() error {
-	tx, err := ob.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	_, _ = tx.Exec("DELETE FROM trades")
-
-	for _, trade := range ob.trades {
-		_, err := tx.Exec(
-			"INSERT INTO trades(price, size, time, buyerID, sellerID) VALUES(?, ?, ?, ?, ?)",
-			trade.Price, trade.Size, trade.Time, trade.BuyerID, trade.SellerID,
-		)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	return tx.Commit()
-}
-
-func (ob *OrderBook) LoadFromDB() error {
-	ob.trades = []Trade{}
-
-	rows3, err := ob.db.Query("SELECT price, size, time, buyerID, sellerID FROM trades")
-	if err != nil {
-		return err
-	}
-	defer rows3.Close()
-
-	for rows3.Next() {
-		var price, size int
-		var time time.Time
-		var buyerID, sellerID uuid.UUID
-		if err := rows3.Scan(&price, &size, &time, &buyerID, &sellerID); err != nil {
-			return err
-		}
-		ob.trades = append(ob.trades, Trade{Price: price, Size: size, Time: time, BuyerID: buyerID, SellerID: sellerID})
-	}
-
-	return nil
 }
