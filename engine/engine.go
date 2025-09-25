@@ -199,19 +199,21 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 					var trade Trade
 					if incomingOrder.Side == Buy {
 						trade = Trade{
+							ID:       uuid.New(),
 							Price:    existingOrder.Price,
 							Size:     existingOrder.Remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  incomingOrder.Id,
-							SellerID: existingOrder.Id,
+							BuyOrderID:  incomingOrder.Id,
+							SellOrderID: existingOrder.Id,
 						}
 					} else {
 						trade = Trade{
+							ID:       uuid.New(),
 							Price:    existingOrder.Price,
 							Size:     existingOrder.Remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  existingOrder.Id,
-							SellerID: incomingOrder.Id,
+							BuyOrderID:  existingOrder.Id,
+							SellOrderID: incomingOrder.Id,
 						}
 					}
 					ob.trades = append(ob.trades, trade)
@@ -222,19 +224,21 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 					var trade Trade
 					if incomingOrder.Side == Buy {
 						trade = Trade{
+							ID:       uuid.New(),
 							Price:    existingOrder.Price,
 							Size:     incomingOrder.Remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  incomingOrder.Id,
-							SellerID: existingOrder.Id,
+							BuyOrderID:  incomingOrder.Id,
+							SellOrderID: existingOrder.Id,
 						}
 					} else {
 						trade = Trade{
+							ID:       uuid.New(),
 							Price:    existingOrder.Price,
 							Size:     incomingOrder.Remaining,
 							Time:     time.Now().UTC(),
-							BuyerID:  existingOrder.Id,
-							SellerID: incomingOrder.Id,
+							BuyOrderID:  existingOrder.Id,
+							SellOrderID: incomingOrder.Id,
 						}
 					}
 					ob.trades = append(ob.trades, trade)

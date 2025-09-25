@@ -20,7 +20,7 @@ var Logger *log.Logger
 type Server struct {
 	addr 	string
 	ob   	*engine.OrderBook
-	writer 	util.Writer
+	storage util.Storage
 }
 
 type PlaceOrderRequest struct {
@@ -29,11 +29,11 @@ type PlaceOrderRequest struct {
 	Size  int    `json:"size"`
 }
 
-func NewServer(addr string, ob *engine.OrderBook, writer util.Writer) *Server {
+func NewServer(addr string, ob *engine.OrderBook, storage util.Storage) *Server {
 	return &Server{
 		addr: addr,
 		ob: ob,
-		writer: writer,
+		storage: storage,
 	}
 }
 
@@ -48,7 +48,7 @@ func headers(w http.ResponseWriter, req *http.Request) {
 func (s *Server) Serve() error {
 	r := mux.NewRouter()
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
-		s.writer.DumpOrderBook()
+		s.storage.DumpOrderBook()
 		view := engine.BuildOrderBookView(s.ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
@@ -65,7 +65,7 @@ func (s *Server) Serve() error {
 	})
 
 	r.HandleFunc("/api/wipe", func(w http.ResponseWriter, r *http.Request) {
-		err := s.writer.ResetOrderBook()
+		err := s.storage.ResetOrderBook()
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]bool{"ok": false})
 		} else {

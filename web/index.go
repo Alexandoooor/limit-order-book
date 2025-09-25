@@ -253,18 +253,21 @@ const IndexHTML = `<!doctype html>
 		<label>Trades</label>
 		<table>
 			<tr>
+				<th>Time</th>
 				<th>Price</th>
-				<th>Size</th><th>Time</th>
-				<th>Buyer ID</th>
-				<th>Seller ID</th>
+				<th>Size</th>
+				<th>Trade ID</th>
+				<th>Buy Order ID</th>
+				<th>Sell Order ID</th>
 			</tr>
 			{{range .Trades}}
 			<tr>
+				<td>{{.Time}}</td>
 				<td>{{.Price}}</td>
 				<td>{{.Size}}</td>
-				<td>{{.Time}}</td>
-				<td>{{.BuyerID}}</td>
-				<td>{{.SellerID}}</td>
+				<td>{{.ID}}</td>
+				<td>{{.BuyOrderID}}</td>
+				<td>{{.SellOrderID}}</td>
 			</tr>
 			{{end}}
 		</table>

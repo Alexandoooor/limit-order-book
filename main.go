@@ -24,6 +24,7 @@ func main() {
 	ob := engine.NewOrderBook()
 
 	jsonStorage := util.JsonStorage{OrderBook: ob}
+	// sqlStorage := util.SqlStorage{OrderBook: ob, Database: util.SetupDB()}
 	restoredOrderBook, err := jsonStorage.RestoreOrderBook()
 	if err != nil {
 		logger.Printf("Failed to restore OrderBook from storage. Continue with new OrderBook. %s", err)

@@ -7,20 +7,22 @@ import (
 	"github.com/google/uuid"
 )
 type Trade struct {
+	ID 	 uuid.UUID `json:"id"`
 	Price    int       `json:"price"`
 	Size     int       `json:"size"`
 	Time     time.Time `json:"time"`
-	BuyerID  uuid.UUID `json:"buyerId"`
-	SellerID uuid.UUID `json:"sellerId"`
+	BuyOrderID  uuid.UUID `json:"buyerId"`
+	SellOrderID uuid.UUID `json:"sellerId"`
 }
 
 func (t *Trade) String() string {
 	return fmt.Sprintf(
-		"Trade{\n\tprice: %d\n\tsize: %d\n\ttime: %s\n\tbuyerId: %s\n\tsellerId: %s\n\t}\n",
+	"Trade{\n\tid: %s\n\tprice: %d\n\tsize: %d\n\ttime: %s\n\tbuyerId: %s\n\tsellerId: %s\n\t}\n",
+		t.ID,
 		t.Price,
 		t.Size,
 		t.Time.Format(time.RFC3339Nano),
-		t.BuyerID,
-		t.SellerID,
+		t.BuyOrderID,
+		t.SellOrderID,
 	)
 }
