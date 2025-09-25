@@ -14,7 +14,7 @@ var (
 
 func main() {
 	flag.Parse()
-	addr := ":" + strconv.Itoa(*port)
+	addr := "localhost:" + strconv.Itoa(*port)
 
 	logger := util.SetupLogging()
 	engine.Logger = logger
@@ -22,15 +22,17 @@ func main() {
 	util.Logger = logger
 
 	ob := engine.NewOrderBook()
-	restoredOrderBook, err := util.RestoreOrderBook()
+
+	jsonStorage := util.JsonStorage{OrderBook: ob}
+	restoredOrderBook, err := jsonStorage.RestoreOrderBook()
 	if err != nil {
 		logger.Printf("Failed to restore OrderBook from storage. Continue with new OrderBook. %s", err)
 	} else {
 		ob = restoredOrderBook
 	}
 
-	logger.Printf("LimitOrderBook running on http://localhost%s\n", addr)
-	server := server.NewServer(addr, ob)
+	logger.Printf("LimitOrderBook running on http://%s\n", addr)
+	server := server.NewServer(addr, ob, &jsonStorage)
 	if err := server.Serve(); err != nil {
 		logger.Fatal(err)
 	}

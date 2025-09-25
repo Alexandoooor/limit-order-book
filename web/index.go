@@ -140,8 +140,8 @@ const IndexHTML = `<!doctype html>
 	button:disabled{opacity:0.45; cursor:not-allowed}
 
 	button.wipe{
-	width:100%; max-width:200px; margin:0 auto; display:block;
-	padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); font-weight:600; font-size:10px; cursor:pointer;
+	width:100%; max-width:150px; margin:0 auto; display:block;
+	padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.04); font-weight:600; font-size:10px; cursor:pointer;
 	background:var(--glass); color:inherit; text-align:center;
 	box-shadow: inset 0 0 0 0 transparent;
 	}
