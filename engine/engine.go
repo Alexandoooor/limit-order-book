@@ -16,8 +16,7 @@ type OrderBook struct {
 	lowestAsk  *Level
 	highestBid *Level
 	trades     []Trade
-	DeletedOrders []uuid.UUID
-	DeletedLevels map[Side]int
+	storage    Storage
 }
 
 type Side int
@@ -43,15 +42,33 @@ func NewOrderBook() *OrderBook {
 	ob := &OrderBook{
 		levels: levels,
 		orders: make(map[uuid.UUID]*Order),
+		storage: &NilStorage{},
 	}
 
 	return ob
 }
 
-func (ob *OrderBook) ResetOrderBook() {
+func (ob *OrderBook) AddStorage(storage Storage) {
+	ob.storage = storage
+}
+
+func (ob *OrderBook) RestoreOrderBook() {
+	restoredOrderBook, err := ob.storage.RestoreOrderBook()
+	if err != nil {
+		Logger.Printf("Failed to restore OrderBook from storage. Continue with new OrderBook. %s", err)
+	} else {
+		ob.levels = restoredOrderBook.levels
+		ob.orders = restoredOrderBook.orders
+		ob.trades = restoredOrderBook.trades
+	}
+}
+
+func (ob *OrderBook) ResetOrderBook() error {
 	ob.levels = map[Side]map[int]*Level{Buy: {}, Sell: {}}
 	ob.orders = make(map[uuid.UUID]*Order)
 	ob.trades = []Trade{}
+	return ob.storage.ResetOrderBook()
+
 }
 
 func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
@@ -124,17 +141,18 @@ func (ob *OrderBook) AddOrder(order Order) uuid.UUID {
 		level.Count++
 	} else {
 		newLevel := ob.NewLevel(&order, order.Side)
+		ob.storage.InsertLevel(order.Side, newLevel.ToDTO())
 		ob.levels[order.Side][newLevel.Price] = newLevel
 	}
 
 	ob.orders[order.Id] = &order
+	ob.storage.InsertOrder(order.ToDTO())
 	return order.Id
 
 }
 
 func (ob *OrderBook) RemoveOrder(order Order) *Order {
 	delete(ob.orders, order.Id)
-	ob.DeletedOrders = append(ob.DeletedOrders, order.Id)
 	parentLevel := order.parentLevel
 	parentLevel.Volume -= order.Remaining
 	parentLevel.Count--
@@ -152,7 +170,6 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 		}
 		return parentLevel.headOrder
 	} else {
-		// ob.DeletedLevels[order.Side] = order.parentLevel.Price
 		delete(ob.levels[order.Side], order.parentLevel.Price)
 		if order.Side == Buy {
 			if ob.highestBid == parentLevel {
@@ -165,6 +182,7 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 
 		}
 	}
+	ob.storage.DeleteOrder(ob.ToDTO(), order.Id)
 	return nil
 }
 
@@ -221,6 +239,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 						}
 					}
 					ob.trades = append(ob.trades, trade)
+					ob.storage.InsertTrade(&trade)
 
 					incomingOrder.Remaining -= existingOrder.Remaining
 					existingOrder = ob.RemoveOrder(*existingOrder)
@@ -246,15 +265,16 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 						}
 					}
 					ob.trades = append(ob.trades, trade)
+					ob.storage.InsertTrade(&trade)
 
 					existingOrder.parentLevel.Volume -= incomingOrder.Remaining
 					existingOrder.Remaining -= incomingOrder.Remaining
 					incomingOrder.Remaining = 0
+					ob.storage.UpdateOrderAndLevel(ob.ToDTO(), existingOrder.Id)
 				}
 			}
 
 			if currentLevel.Count == 0 {
-				// ob.DeletedLevels[incomingOrder.Side] = currentLevel.Price
 				delete(ob.levels[incomingOrder.Side], currentLevel.Price)
 				if incomingOrder.Side == Buy {
 					ob.lowestAsk = currentLevel.nextLevel
@@ -338,38 +358,12 @@ func (ob *OrderBook) ToDTO() *OrderBookDTO {
 	}
 
 	for id, o := range ob.orders {
-		orderDTO := &OrderDTO{
-			Id:        o.Id,
-			Side:      o.Side,
-			Size:      o.Size,
-			Remaining: o.Remaining,
-			Price:     o.Price,
-			Time:      o.Time,
-		}
-		if o.nextOrder != nil {
-			orderDTO.NextID = &o.nextOrder.Id
-		}
-		if o.prevOrder != nil {
-			orderDTO.PrevID = &o.prevOrder.Id
-		}
-		dto.Orders[id] = orderDTO
+		dto.Orders[id] = o.ToDTO()
 	}
 
 	for side := range ob.levels {
 		for price, lvl := range ob.levels[side] {
-			levelDTO := &LevelDTO{
-				Price:  lvl.Price,
-				Volume: lvl.Volume,
-				Count:  lvl.Count,
-				Orders: []uuid.UUID{},
-			}
-			for o := lvl.headOrder; o != nil; o = o.nextOrder {
-				levelDTO.Orders = append(levelDTO.Orders, o.Id)
-				if o == lvl.tailOrder {
-					break
-				}
-			}
-			dto.Levels[side][price] = levelDTO
+			dto.Levels[side][price] = lvl.ToDTO()
 		}
 	}
 

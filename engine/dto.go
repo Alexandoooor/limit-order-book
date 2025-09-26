@@ -81,7 +81,6 @@ func (dto *OrderBookDTO) ToOrderBook() *OrderBook {
 				}
 			}
 
-
 			var prev *Order
 			for _, oid := range ldto.Orders {
 				o := ob.orders[oid]

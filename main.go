@@ -19,22 +19,18 @@ func main() {
 	logger := util.SetupLogging()
 	engine.Logger = logger
 	server.Logger = logger
-	util.Logger = logger
 
-	ob := engine.NewOrderBook()
 
-	db := util.SetupDB()
+	db := engine.SetupDB()
 	defer db.Close()
-	storage := util.SqlStorage{Database: db}
-	restoredOrderBook, err := storage.RestoreOrderBook()
-	if err != nil {
-		logger.Printf("Failed to restore OrderBook from storage. Continue with new OrderBook. %s", err)
-	} else {
-		ob = restoredOrderBook
-	}
+	// storage := engine.SqlStorage{Database: db}
+	storage := engine.JsonStorage{}
+	ob := engine.NewOrderBook()
+	ob.AddStorage(&storage)
+	ob.RestoreOrderBook()
 
 	logger.Printf("LimitOrderBook running on http://%s\n", addr)
-	server := server.NewServer(addr, ob, &storage)
+	server := server.NewServer(addr, ob)
 	if err := server.Serve(); err != nil {
 		logger.Fatal(err)
 	}

@@ -50,3 +50,22 @@ func (o *Order) String() string {
 		prevID,
 	)
 }
+
+func (o *Order) ToDTO() *OrderDTO {
+	orderDTO := &OrderDTO{
+		Id:        o.Id,
+		Side:      o.Side,
+		Size:      o.Size,
+		Remaining: o.Remaining,
+		Price:     o.Price,
+		Time:      o.Time,
+	}
+	if o.nextOrder != nil {
+		orderDTO.NextID = &o.nextOrder.Id
+	}
+	if o.prevOrder != nil {
+		orderDTO.PrevID = &o.prevOrder.Id
+	}
+
+	return orderDTO
+}
