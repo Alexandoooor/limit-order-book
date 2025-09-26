@@ -6,17 +6,17 @@ import (
 	"github.com/google/uuid"
 )
 
+type OrderBookDTO struct {
+	Levels     map[Side]map[int]*LevelDTO `json:"levels"`
+	Orders 	   map[uuid.UUID]*OrderDTO `json:"orders"`
+	Trades     []Trade `json:"trades"`
+}
+
 type LevelDTO struct {
 	Price   int       `json:"price"`
 	Volume  int       `json:"volume"`
 	Count   int       `json:"count"`
 	Orders  []uuid.UUID `json:"orders"`
-}
-
-type OrderBookDTO struct {
-	Levels     map[Side]map[int]*LevelDTO `json:"levels"`
-	Orders 	   map[uuid.UUID]*OrderDTO `json:"orders"`
-	Trades     []Trade `json:"trades"`
 }
 
 type OrderDTO struct {

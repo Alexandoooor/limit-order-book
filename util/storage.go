@@ -15,22 +15,19 @@ import (
 var Logger *log.Logger
 
 type Storage interface {
-	ResetOrderBook() error
+	ResetOrderBook(ob *engine.OrderBook) error
 	RestoreOrderBook() (*engine.OrderBook, error)
-	DumpOrderBook() error
+	DumpOrderBook(ob *engine.OrderBook) error
 }
 
-type JsonStorage struct {
-	OrderBook *engine.OrderBook
-}
+type JsonStorage struct {}
 
 type SqlStorage struct {
-	OrderBook *engine.OrderBook
 	Database *sql.DB
 }
 
-func (j *JsonStorage) ResetOrderBook() error {
-	j.OrderBook.ResetOrderBook()
+func (j *JsonStorage) ResetOrderBook(ob *engine.OrderBook) error {
+	ob.ResetOrderBook()
 
 	ordersFile := os.Getenv("ORDERS")
 	if ordersFile == "" {
@@ -68,13 +65,13 @@ func (j *JsonStorage) RestoreOrderBook() (*engine.OrderBook, error) {
 	return restoredBook, nil
 }
 
-func (j *JsonStorage) DumpOrderBook() error {
+func (j *JsonStorage) DumpOrderBook(ob *engine.OrderBook) error {
 	filename := os.Getenv("ORDERBOOK")
 	if filename == "" {
 		filename = "/tmp/orderbook.json"
 	}
 
-	dto := j.OrderBook.ToDTO()
+	dto := ob.ToDTO()
 	data, err := json.MarshalIndent(dto, "", "  ")
 	if err != nil {
 		return err
@@ -84,37 +81,41 @@ func (j *JsonStorage) DumpOrderBook() error {
 }
 
 
-func (s *SqlStorage) ResetOrderBook() error {
+func (s *SqlStorage) ResetOrderBook(ob *engine.OrderBook) error {
 	return nil
 }
 
 func (s *SqlStorage) RestoreOrderBook() (*engine.OrderBook, error) {
 	levelDTO, err := getLevels(s.Database)
+	Logger.Printf("Levels: %+v", levelDTO)
 	if err != nil {
 		return nil, err
 	}
 
 	orderDTO, err := getAllOrders(s.Database)
+	Logger.Printf("Orders: %+v", orderDTO)
 	if err != nil {
 		return nil, err
 	}
 
-	tradesDTO, err := getAllTrades(s.Database)
+	tradeDTO, err := getAllTrades(s.Database)
+	Logger.Printf("Trades: %+v", tradeDTO)
 	if err != nil {
 		return nil, err
 	}
+
 
 	obDTO := engine.OrderBookDTO {
 		Levels: levelDTO,
 		Orders: orderDTO,
-		Trades: tradesDTO,
+		Trades: tradeDTO,
 
 	}
 	return obDTO.ToOrderBook(), nil
 }
 
-func (s *SqlStorage) DumpOrderBook() error {
-	dto := s.OrderBook.ToDTO()
+func (s *SqlStorage) DumpOrderBook(ob *engine.OrderBook) error {
+	dto := ob.ToDTO()
 	db := s.Database
 
 	tx, err := db.Begin()
@@ -123,6 +124,9 @@ func (s *SqlStorage) DumpOrderBook() error {
 	}
 
 	insertLevels(db, dto)
+	insertOrders(db, dto)
+	deleteOrders(db, ob.DeletedOrders) // TBD FIX DB
+	insertTrades(db, dto)
 	return tx.Commit()
 }
 
@@ -131,7 +135,6 @@ func SetupDB() *sql.DB {
 	if err != nil {
 		Logger.Fatal(err)
 	}
-	defer db.Close()
 	return db
 }
 
@@ -152,7 +155,7 @@ func insertLevels(db *sql.DB, dto *engine.OrderBookDTO) {
 
 func insertLevel(db *sql.DB, side engine.Side, l *engine.LevelDTO) error {
 	res, err := db.Exec(`
-		INSERT INTO levels (side, price, volume, count)
+		INSERT OR REPLACE INTO levels (side, price, volume, count)
 		VALUES (?, ?, ?, ?)`,
 		side, l.Price, l.Volume, l.Count,
 	)
@@ -166,7 +169,7 @@ func insertLevel(db *sql.DB, side engine.Side, l *engine.LevelDTO) error {
 	}
 
 	for _, oid := range l.Orders {
-		_, err := db.Exec(`INSERT INTO level_orders (level_rowid, order_id) VALUES (?, ?)`,
+		_, err := db.Exec(`INSERT OR REPLACE INTO level_orders (level_side, level_price, order_id) VALUES (?, ?)`,
 			rowid, oid.String(),
 		)
 		if err != nil {
@@ -176,9 +179,15 @@ func insertLevel(db *sql.DB, side engine.Side, l *engine.LevelDTO) error {
 	return nil
 }
 
+func insertOrders(db *sql.DB, dto *engine.OrderBookDTO) {
+	for _, order := range dto.Orders {
+		insertOrder(db, order)
+	}
+}
+
 func insertOrder(db *sql.DB, o *engine.OrderDTO) error {
 	_, err := db.Exec(`
-		INSERT INTO orders (id, side, size, remaining, price, time, next_id, prev_id)
+		INSERT OR REPLACE INTO orders (id, side, size, remaining, price, time, next_id, prev_id)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		o.Id.String(), o.Side, o.Size, o.Remaining, o.Price, o.Time.Format(time.RFC3339),
 		uuidToString(o.NextID), uuidToString(o.PrevID),
@@ -186,11 +195,76 @@ func insertOrder(db *sql.DB, o *engine.OrderDTO) error {
 	return err
 }
 
+func deleteOrders(db *sql.DB, do []uuid.UUID) {
+	for _, deletedOrderID := range do {
+		deleteOrder(db, deletedOrderID)
+	}
+}
+
+func deleteOrder(db *sql.DB, id uuid.UUID) error {
+	// Get side + price before deleting
+	row := db.QueryRow(`
+		SELECT o.side, o.price
+		FROM orders o
+		WHERE o.id = ?`, id.String())
+
+	var side string
+	var price int
+	if err := row.Scan(&side, &price); err != nil {
+		return err
+	}
+
+	// Delete from level_orders
+	if _, err := db.Exec(`DELETE FROM level_orders WHERE order_id = ?`, id.String()); err != nil {
+		return err
+	}
+
+	// Delete from orders
+	if _, err := db.Exec(`DELETE FROM orders WHERE id = ?`, id.String()); err != nil {
+		return err
+	}
+
+	// Check if level still has any orders
+	row = db.QueryRow(`
+		SELECT COUNT(*)
+		FROM level_orders
+		WHERE level_side = ? AND level_price = ?`, side, price)
+
+	var count int
+	if err := row.Scan(&count); err != nil {
+		return err
+	}
+
+	// If no orders left → remove the level
+	if count == 0 {
+		_, err := db.Exec(`DELETE FROM levels WHERE side = ? AND price = ?`, side, price)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func deleteLevels(db *sql.DB, dl map[engine.Side]int) error {
+	for side, price := range dl {
+		_, err := db.Exec(`DELETE FROM levels WHERE side = ? AND price = ?`, side, price)
+		return err
+	}
+	return nil
+}
+
+func insertTrades(db *sql.DB, dto *engine.OrderBookDTO) {
+	for _, trade := range dto.Trades {
+		insertTrade(db, &trade)
+	}
+}
+
 func insertTrade(db *sql.DB, t *engine.Trade) error {
 	_, err := db.Exec(`
-		INSERT INTO trades (buy_order_id, sell_order_id, price, size, time)
-		VALUES (?, ?, ?, ?, ?)`,
-		t.BuyOrderID.String(), t.SellOrderID.String(), t.Price, t.Size, t.Time.Format(time.RFC3339),
+		INSERT INTO trades (id, buy_order_id, sell_order_id, price, size, time)
+		VALUES (?, ?, ?, ?, ?, ?)`,
+		t.ID, t.BuyOrderID.String(), t.SellOrderID.String(), t.Price, t.Size, t.Time.Format(time.RFC3339),
 	)
 	if err != nil {
 		return err
@@ -200,7 +274,7 @@ func insertTrade(db *sql.DB, t *engine.Trade) error {
 }
 
 func getLevels(db *sql.DB) (map[engine.Side]map[int]*engine.LevelDTO, error) {
-	rows, err := db.Query(`SELECT rowid, side, price, volume, count FROM levels`)
+	rows, err := db.Query(`SELECT side, price, volume, count FROM levels`)
 	if err != nil {
 		return nil, err
 	}
@@ -212,14 +286,13 @@ func getLevels(db *sql.DB) (map[engine.Side]map[int]*engine.LevelDTO, error) {
 	}
 
 	for rows.Next() {
-		var rowid int64
 		var sideInt int
 		var l engine.LevelDTO
-		if err := rows.Scan(&rowid, &sideInt, &l.Price, &l.Volume, &l.Count); err != nil {
+		if err := rows.Scan(&sideInt, &l.Price, &l.Volume, &l.Count); err != nil {
 			return nil, err
 		}
 
-		orderRows, err := db.Query(`SELECT order_id FROM level_orders WHERE level_rowid = ?`, rowid)
+		orderRows, err := db.Query(`SELECT order_id FROM level_orders WHERE level_side = ? AND level_price = ?`, sideInt, l.Price)
 		if err != nil {
 			return nil, err
 		}
@@ -295,12 +368,11 @@ func getAllOrders(db *sql.DB) (map[uuid.UUID]*engine.OrderDTO, error) {
 	return orders, nil
 }
 
-// Fetch a trade by ID
-func getTrade(db *sql.DB, id int) (*engine.Trade, error) {
+func getTrade(db *sql.DB, id uuid.UUID) (*engine.Trade, error) {
 	row := db.QueryRow(`
 		SELECT id, buy_order_id, sell_order_id, price, size, time
 		FROM trades
-		WHERE id = ?`, id)
+		WHERE id = ?`, id.String())
 
 	var t engine.Trade
 	var buyID, sellID string
@@ -328,11 +400,11 @@ func getAllTrades(db *sql.DB) ([]engine.Trade, error) {
 
 	var trades []engine.Trade
 	for rows.Next() {
-		var id int
-		if err := rows.Scan(&id); err != nil {
+		var idStr string
+		if err := rows.Scan(&idStr); err != nil {
 			return nil, err
 		}
-		t, err := getTrade(db, id)
+		t, err := getTrade(db, uuid.MustParse(idStr))
 		if err != nil {
 			return nil, err
 		}

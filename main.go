@@ -23,9 +23,10 @@ func main() {
 
 	ob := engine.NewOrderBook()
 
-	jsonStorage := util.JsonStorage{OrderBook: ob}
-	// sqlStorage := util.SqlStorage{OrderBook: ob, Database: util.SetupDB()}
-	restoredOrderBook, err := jsonStorage.RestoreOrderBook()
+	db := util.SetupDB()
+	defer db.Close()
+	storage := util.SqlStorage{Database: db}
+	restoredOrderBook, err := storage.RestoreOrderBook()
 	if err != nil {
 		logger.Printf("Failed to restore OrderBook from storage. Continue with new OrderBook. %s", err)
 	} else {
@@ -33,7 +34,7 @@ func main() {
 	}
 
 	logger.Printf("LimitOrderBook running on http://%s\n", addr)
-	server := server.NewServer(addr, ob, &jsonStorage)
+	server := server.NewServer(addr, ob, &storage)
 	if err := server.Serve(); err != nil {
 		logger.Fatal(err)
 	}

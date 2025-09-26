@@ -48,7 +48,7 @@ func headers(w http.ResponseWriter, req *http.Request) {
 func (s *Server) Serve() error {
 	r := mux.NewRouter()
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
-		s.storage.DumpOrderBook()
+		s.storage.DumpOrderBook(s.ob)
 		view := engine.BuildOrderBookView(s.ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
@@ -65,7 +65,7 @@ func (s *Server) Serve() error {
 	})
 
 	r.HandleFunc("/api/wipe", func(w http.ResponseWriter, r *http.Request) {
-		err := s.storage.ResetOrderBook()
+		err := s.storage.ResetOrderBook(s.ob)
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]bool{"ok": false})
 		} else {

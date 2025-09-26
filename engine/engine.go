@@ -16,6 +16,8 @@ type OrderBook struct {
 	lowestAsk  *Level
 	highestBid *Level
 	trades     []Trade
+	DeletedOrders []uuid.UUID
+	DeletedLevels map[Side]int
 }
 
 type Side int
@@ -132,6 +134,7 @@ func (ob *OrderBook) AddOrder(order Order) uuid.UUID {
 
 func (ob *OrderBook) RemoveOrder(order Order) *Order {
 	delete(ob.orders, order.Id)
+	ob.DeletedOrders = append(ob.DeletedOrders, order.Id)
 	parentLevel := order.parentLevel
 	parentLevel.Volume -= order.Remaining
 	parentLevel.Count--
@@ -149,6 +152,7 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 		}
 		return parentLevel.headOrder
 	} else {
+		// ob.DeletedLevels[order.Side] = order.parentLevel.Price
 		delete(ob.levels[order.Side], order.parentLevel.Price)
 		if order.Side == Buy {
 			if ob.highestBid == parentLevel {
@@ -250,6 +254,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 			}
 
 			if currentLevel.Count == 0 {
+				// ob.DeletedLevels[incomingOrder.Side] = currentLevel.Price
 				delete(ob.levels[incomingOrder.Side], currentLevel.Price)
 				if incomingOrder.Side == Buy {
 					ob.lowestAsk = currentLevel.nextLevel
