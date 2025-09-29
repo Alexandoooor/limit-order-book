@@ -170,7 +170,6 @@ func TestRemoveHead(t *testing.T) {
 	order := ob.orders[id0]
 	ob.RemoveOrder(*order)
 
-	// level := ob.levels[Buy][7331]
 	level := ob.levels[Buy][7331]
 	if level.headOrder.Id != id1 {
 		t.Fatalf("tests - head wrong. expected=%+v, got=%+v", id1, level.headOrder.Id)

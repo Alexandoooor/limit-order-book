@@ -16,8 +16,8 @@ type Storage interface {
 	InsertLevel(side Side, l *LevelDTO) error
 	InsertTrade(t *Trade) error
 	InsertOrder(o *OrderDTO) error
-	DeleteOrder(ob *OrderBookDTO, id uuid.UUID) error
-	UpdateOrderAndLevel(ob *OrderBookDTO, id uuid.UUID) error
+	DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error
+	UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error
 }
 
 type NilStorage struct {}
@@ -40,11 +40,11 @@ func (n *NilStorage) InsertOrder(o *OrderDTO) error {
 	return nil
 
 }
-func (n *NilStorage) DeleteOrder(ob *OrderBookDTO, id uuid.UUID) error {
+func (n *NilStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	return nil
 }
 
-func (n *NilStorage) UpdateOrderAndLevel(ob *OrderBookDTO, id uuid.UUID) error {
+func (n *NilStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	return nil
 }
 
@@ -58,11 +58,9 @@ func (n *NilStorage) RestoreOrderBook() (*OrderBook, error) {
 
 func (j *JsonStorage) InsertLevel(side Side, l *LevelDTO) error {
 	dto, err := j.getDTO()
-	Logger.Printf("err: %s", err)
 	if err != nil {
 		return err
 	}
-	Logger.Printf("dto.levels %+v", dto.Levels)
 	dto.Levels[side][l.Price] = l
 	return j.WriteDTOToJson(dto)
 }
@@ -82,10 +80,11 @@ func (j *JsonStorage) InsertOrder(o *OrderDTO) error {
 		return err
 	}
 	dto.Orders[o.Id] = o
+
 	return j.WriteDTOToJson(dto)
 }
 
-func (j *JsonStorage) DeleteOrder(ob *OrderBookDTO, id uuid.UUID) error {
+func (j *JsonStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	dto, err := j.getDTO()
 	if err != nil {
 		return err
@@ -97,8 +96,8 @@ func (j *JsonStorage) DeleteOrder(ob *OrderBookDTO, id uuid.UUID) error {
 	return j.WriteDTOToJson(dto)
 }
 
-func (j *JsonStorage) UpdateOrderAndLevel(ob *OrderBookDTO, id uuid.UUID) error {
-	return j.DeleteOrder(ob, uuid.New())
+func (j *JsonStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
+	return j.DeleteOrder(ob, o)
 }
 
 func (j *JsonStorage) WriteDTOToJson(dto *OrderBookDTO) error {
@@ -155,8 +154,12 @@ func (j *JsonStorage) RestoreOrderBook() (*OrderBook, error) {
 	filename := j.getFilename()
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		_, err := os.Create(filename)
+		if err != nil {
+			Logger.Fatal(err)
+		}
 	}
+	data, err = os.ReadFile(filename)
 
 	var dto OrderBookDTO
 	err = json.Unmarshal(data, &dto)
@@ -225,8 +228,8 @@ func (s *SqlStorage) RestoreOrderBook() (*OrderBook, error) {
 		Levels: levelDTO,
 		Orders: orderDTO,
 		Trades: tradeDTO,
-
 	}
+
 	return obDTO.ToOrderBook(), nil
 }
 
@@ -246,8 +249,8 @@ func uuidToString(u *uuid.UUID) interface{} {
 }
 
 func (s *SqlStorage) InsertLevel(side Side, l *LevelDTO) error {
-	res, err := s.Database.Exec(`
-		INSERT OR REPLACE INTO levels (side, price, volume, count)
+	_, err := s.Database.Exec(`
+		INSERT INTO levels (side, price, volume, count)
 		VALUES (?, ?, ?, ?)`,
 		side, l.Price, l.Volume, l.Count,
 	)
@@ -255,37 +258,35 @@ func (s *SqlStorage) InsertLevel(side Side, l *LevelDTO) error {
 		return err
 	}
 
-	rowid, err := res.LastInsertId()
-	if err != nil {
-		return err
-	}
-
-	for _, oid := range l.Orders {
-		_, err := s.Database.Exec(`INSERT OR REPLACE INTO level_orders (level_side, level_price, order_id) VALUES (?, ?)`,
-			rowid, oid.String(),
-		)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 func (s *SqlStorage) InsertOrder(o *OrderDTO) error {
 	_, err := s.Database.Exec(`
-		INSERT OR REPLACE INTO orders (id, side, size, remaining, price, time, next_id, prev_id)
+		INSERT INTO orders (id, side, size, remaining, price, time, next_id, prev_id)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		o.Id.String(), o.Side, o.Size, o.Remaining, o.Price, o.Time.Format(time.RFC3339),
 		uuidToString(o.NextID), uuidToString(o.PrevID),
 	)
-	return err
+	if err != nil {
+		return err
+	}
+
+	_, err = s.Database.Exec(`INSERT OR REPLACE INTO level_orders (level_side, level_price, order_id) VALUES (?, ?, ?)`,
+		o.Side, o.Price, o.Id,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (s *SqlStorage) DeleteOrder(ob *OrderBookDTO, id uuid.UUID) error {
+func (s *SqlStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	row := s.Database.QueryRow(`
 		SELECT o.side, o.price
 		FROM orders o
-		WHERE o.id = ?`, id.String())
+		WHERE o.id = ?`, o.Id.String())
 
 	var side string
 	var price int
@@ -293,11 +294,11 @@ func (s *SqlStorage) DeleteOrder(ob *OrderBookDTO, id uuid.UUID) error {
 		return err
 	}
 
-	if _, err := s.Database.Exec(`DELETE FROM level_orders WHERE order_id = ?`, id.String()); err != nil {
+	if _, err := s.Database.Exec(`DELETE FROM level_orders WHERE order_id = ?`, o.Id.String()); err != nil {
 		return err
 	}
 
-	if _, err := s.Database.Exec(`DELETE FROM orders WHERE id = ?`, id.String()); err != nil {
+	if _, err := s.Database.Exec(`DELETE FROM orders WHERE id = ?`, o.Id.String()); err != nil {
 		return err
 	}
 
@@ -321,9 +322,44 @@ func (s *SqlStorage) DeleteOrder(ob *OrderBookDTO, id uuid.UUID) error {
 	return nil
 }
 
-func (s *SqlStorage) UpdateOrderAndLevel(ob *OrderBookDTO, id uuid.UUID) error {
-	order := ob.Orders[id]
-	updateOrder(s.Database, order)
+func (s *SqlStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
+	_, err := s.Database.Exec(`
+		UPDATE orders
+		SET remaining = ?
+		WHERE id = ?`,
+		o.Remaining, o.Id.String(),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if o.Remaining <= 0 {
+		if _, err := s.Database.Exec(`
+			DELETE FROM level_orders
+			WHERE level_side = ? AND level_price = ? AND order_id = ?`,
+			o.Side, o.Price, o.Id.String(),
+		); err != nil {
+			return err
+		}
+
+		row := s.Database.QueryRow(`
+			SELECT COUNT(*) FROM level_orders
+			WHERE level_side = ? AND level_price = ?`, o.Side, o.Price)
+		var count int
+		if err := row.Scan(&count); err != nil {
+			return err
+		}
+		if count == 0 {
+			if _, err := s.Database.Exec(`
+				DELETE FROM levels
+				WHERE side = ? AND price = ?`,
+				o.Side, o.Price,
+			); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -477,64 +513,4 @@ func getAllTrades(db *sql.DB) ([]Trade, error) {
 	}
 
 	return trades, nil
-}
-
-func updateOrder(db *sql.DB, o *OrderDTO) error {
-	// Get the current state of the order
-	old, err := getOrder(db, o.Id)
-	if err != nil {
-		return err
-	}
-
-	// Calculate the difference in remaining
-	diff := o.Remaining - old.Remaining // will be negative if remaining decreased
-
-	// Update the order
-	_, err = db.Exec(`
-		UPDATE orders
-		SET remaining = ?, time = ?
-		WHERE id = ?`,
-		o.Remaining, o.Time.Format(time.RFC3339), o.Id.String(),
-	)
-	if err != nil {
-		return err
-	}
-
-	// Adjust the level volume
-	_, err = db.Exec(`
-		UPDATE levels
-		SET volume = volume + ?
-		WHERE side = ? AND price = ?`,
-		diff, o.Side, o.Price,
-	)
-	if err != nil {
-		return err
-	}
-
-	// If order is fully filled, remove from level_orders
-	if o.Remaining <= 0 {
-		if _, err := db.Exec(`
-			DELETE FROM level_orders
-			WHERE level_side = ? AND level_price = ? AND order_id = ?`,
-			o.Side, o.Price, o.Id.String(),
-		); err != nil {
-			return err
-		}
-
-		// Remove level if no orders remain
-		row := db.QueryRow(`
-			SELECT COUNT(*) FROM level_orders
-			WHERE level_side = ? AND level_price = ?`, o.Side, o.Price)
-		var count int
-		if err := row.Scan(&count); err != nil {
-			return err
-		}
-		if count == 0 {
-			if _, err := db.Exec(`DELETE FROM levels WHERE side = ? AND price = ?`, o.Side, o.Price); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }

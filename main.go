@@ -23,8 +23,8 @@ func main() {
 
 	db := engine.SetupDB()
 	defer db.Close()
-	// storage := engine.SqlStorage{Database: db}
-	storage := engine.JsonStorage{}
+	storage := engine.SqlStorage{Database: db}
+	// storage := engine.JsonStorage{}
 	ob := engine.NewOrderBook()
 	ob.AddStorage(&storage)
 	ob.RestoreOrderBook()

@@ -60,6 +60,8 @@ func (ob *OrderBook) RestoreOrderBook() {
 		ob.levels = restoredOrderBook.levels
 		ob.orders = restoredOrderBook.orders
 		ob.trades = restoredOrderBook.trades
+		ob.highestBid = restoredOrderBook.highestBid
+		ob.lowestAsk = restoredOrderBook.lowestAsk
 	}
 }
 
@@ -74,8 +76,8 @@ func (ob *OrderBook) ResetOrderBook() error {
 func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	newLevel := &Level{
 		Price:     order.Price,
-		Volume:    order.Remaining,
-		Count:     1,
+		Volume:    0,
+		Count:     0,
 		headOrder: order,
 		tailOrder: order,
 	}
@@ -142,6 +144,8 @@ func (ob *OrderBook) AddOrder(order Order) uuid.UUID {
 	} else {
 		newLevel := ob.NewLevel(&order, order.Side)
 		ob.storage.InsertLevel(order.Side, newLevel.ToDTO())
+		newLevel.Count = 1
+		newLevel.Volume = order.Remaining
 		ob.levels[order.Side][newLevel.Price] = newLevel
 	}
 
@@ -156,6 +160,11 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 	parentLevel := order.parentLevel
 	parentLevel.Volume -= order.Remaining
 	parentLevel.Count--
+
+	err := ob.storage.DeleteOrder(ob.ToDTO(), order.ToDTO())
+	if err != nil {
+		Logger.Fatalf("Failed to DeleteOrder: %s", err)
+	}
 
 	if parentLevel.Count > 0 {
 		if parentLevel.headOrder.Id == order.Id {
@@ -182,7 +191,6 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 
 		}
 	}
-	ob.storage.DeleteOrder(ob.ToDTO(), order.Id)
 	return nil
 }
 
@@ -270,7 +278,7 @@ func (ob *OrderBook) ProcessOrder(incomingSide Side, incomingPrice int, incoming
 					existingOrder.parentLevel.Volume -= incomingOrder.Remaining
 					existingOrder.Remaining -= incomingOrder.Remaining
 					incomingOrder.Remaining = 0
-					ob.storage.UpdateOrderAndLevel(ob.ToDTO(), existingOrder.Id)
+					ob.storage.UpdateOrder(ob.ToDTO(), existingOrder.ToDTO())
 				}
 			}
 

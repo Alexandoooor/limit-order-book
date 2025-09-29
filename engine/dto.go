@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -98,6 +99,29 @@ func (dto *OrderBookDTO) ToOrderBook() *OrderBook {
 			ob.levels[side][price] = lvl
 		}
 	}
+
+	highestBidPrice := math.MinInt
+	var highestBid *Level
+	for price, level := range ob.levels[Buy] {
+		if price > highestBidPrice {
+			highestBidPrice = price
+			highestBid = level
+
+		}
+	}
+	ob.highestBid = highestBid
+
+
+	lowestAskPrice := math.MaxInt
+	var lowestAsk *Level
+	for price, level := range ob.levels[Sell] {
+		if price < lowestAskPrice {
+			lowestAskPrice = price
+			lowestAsk = level
+		}
+	}
+	ob.lowestAsk = lowestAsk
+
 
 	return ob
 }
