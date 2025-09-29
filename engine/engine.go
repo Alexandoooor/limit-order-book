@@ -76,8 +76,8 @@ func (ob *OrderBook) ResetOrderBook() error {
 func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	newLevel := &Level{
 		Price:     order.Price,
-		Volume:    0,
-		Count:     0,
+		Volume:    order.Remaining,
+		Count:     1,
 		headOrder: order,
 		tailOrder: order,
 	}
@@ -144,8 +144,6 @@ func (ob *OrderBook) AddOrder(order Order) uuid.UUID {
 	} else {
 		newLevel := ob.NewLevel(&order, order.Side)
 		ob.storage.InsertLevel(order.Side, newLevel.ToDTO())
-		newLevel.Count = 1
-		newLevel.Volume = order.Remaining
 		ob.levels[order.Side][newLevel.Price] = newLevel
 	}
 
@@ -188,8 +186,8 @@ func (ob *OrderBook) RemoveOrder(order Order) *Order {
 			if ob.lowestAsk == parentLevel {
 				ob.lowestAsk = parentLevel.nextLevel
 			}
-
 		}
+
 	}
 	return nil
 }

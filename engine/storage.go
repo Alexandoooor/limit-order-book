@@ -90,8 +90,14 @@ func (j *JsonStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
 		return err
 	}
 
-	dto.Orders = ob.Orders
-	dto.Levels = ob.Levels
+	delete(dto.Orders, o.Id)
+	parentLevel := dto.Levels[o.Side][o.Price]
+	if parentLevel != nil {
+		parentLevel.Count--
+		if parentLevel.Count <= 0 {
+			delete(dto.Levels[o.Side], o.Price)
+		}
+	}
 
 	return j.WriteDTOToJson(dto)
 }
@@ -252,7 +258,7 @@ func (s *SqlStorage) InsertLevel(side Side, l *LevelDTO) error {
 	_, err := s.Database.Exec(`
 		INSERT INTO levels (side, price, volume, count)
 		VALUES (?, ?, ?, ?)`,
-		side, l.Price, l.Volume, l.Count,
+		side, l.Price, 0, 0, //SQL-trigger takes care of updating volume and count when inserting an order
 	)
 	if err != nil {
 		return err
@@ -272,12 +278,14 @@ func (s *SqlStorage) InsertOrder(o *OrderDTO) error {
 		return err
 	}
 
-	_, err = s.Database.Exec(`INSERT OR REPLACE INTO level_orders (level_side, level_price, order_id) VALUES (?, ?, ?)`,
+	_, err = s.Database.Exec(`INSERT INTO level_orders (level_side, level_price, order_id) VALUES (?, ?, ?)`,
 		o.Side, o.Price, o.Id,
 	)
 	if err != nil {
 		return err
 	}
+
+
 
 	return nil
 }

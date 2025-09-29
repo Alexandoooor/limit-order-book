@@ -40,7 +40,6 @@ func BuildOrderBookView(ob *OrderBook) OrderBookView {
 		return view.Bids[i].Price > view.Bids[j].Price
 	})
 
-	// Sort asks ascending by price
 	sort.Slice(view.Asks, func(i, j int) bool {
 		return view.Asks[i].Price < view.Asks[j].Price
 	})

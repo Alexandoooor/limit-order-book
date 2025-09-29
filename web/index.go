@@ -4,7 +4,6 @@ func IndexTemplate() string {
 	return IndexHTML
 }
 
-// IndexHTML contains the minimal UI served at GET /
 const IndexHTML = `<!doctype html>
 <html>
 <head>
