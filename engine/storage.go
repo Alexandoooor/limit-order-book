@@ -285,8 +285,6 @@ func (s *SqlStorage) InsertOrder(o *OrderDTO) error {
 		return err
 	}
 
-
-
 	return nil
 }
 

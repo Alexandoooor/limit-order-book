@@ -14,7 +14,8 @@ var (
 
 func main() {
 	flag.Parse()
-	addr := "localhost:" + strconv.Itoa(*port)
+	// addr := "localhost:" + strconv.Itoa(*port)
+	addr := ":" + strconv.Itoa(*port)
 
 	logger := util.SetupLogging()
 	engine.Logger = logger
