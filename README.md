@@ -42,3 +42,19 @@ Example:
 ---
 Init sqlite:
     sqlite3 orderbook.db < schema.sql
+
+Postgres env-variables:
+
+export POSTGRES_DB="local"
+export POSTGRES_USER="postgres"
+export POSTGRES_PASSWORD="SecurePassword"
+export POSTGRES_HOST="localhost"
+export POSTGRES_PORT="5432"
+
+local-postgres:
+
+docker run --name local-postgres -e POSTGRES_PASSWORD=SecurePassword -e POSTGRES_DB=local -p 5432:5432 -d postgres:latest
+
+docker stop local-postgres
+
+docker rm local-postgres
