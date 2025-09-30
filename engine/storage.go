@@ -20,40 +20,10 @@ type Storage interface {
 	UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error
 }
 
-type NilStorage struct {}
-
 type JsonStorage struct {}
 
 type SqlStorage struct {
 	Database *sql.DB
-}
-
-func (n *NilStorage) InsertLevel(side Side, l *LevelDTO) error {
-	return nil
-}
-
-func (n *NilStorage) InsertTrade(t *Trade) error {
-	return nil
-}
-
-func (n *NilStorage) InsertOrder(o *OrderDTO) error {
-	return nil
-
-}
-func (n *NilStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
-	return nil
-}
-
-func (n *NilStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
-	return nil
-}
-
-func (n *NilStorage) ResetOrderBook() error {
-	return nil
-}
-
-func (n *NilStorage) RestoreOrderBook() (*OrderBook, error) {
-	return NewOrderBook(), nil
 }
 
 func (j *JsonStorage) InsertLevel(side Side, l *LevelDTO) error {
@@ -240,7 +210,13 @@ func (s *SqlStorage) RestoreOrderBook() (*OrderBook, error) {
 }
 
 func SetupDB() *sql.DB {
-	db, err := sql.Open("sqlite3", "orderbook.db")
+	var db *sql.DB
+	var err error
+	if dbFile := os.Getenv("TRADES"); dbFile != "" {
+		db, err = sql.Open("sqlite3", dbFile)
+	} else {
+		db, err = sql.Open("sqlite3", "orderbook.db")
+	}
 	if err != nil {
 		Logger.Fatal(err)
 	}

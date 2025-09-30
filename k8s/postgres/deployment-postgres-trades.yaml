@@ -5,8 +5,8 @@ metadata:
   labels:
     app: postgres
 data:
-  POSTGRES_DB: ps_db
-  POSTGRES_USER: ps_user
+  POSTGRES_DB: postgres
+  POSTGRES_USER: postgres
   POSTGRES_PASSWORD: SecurePassword
   POSTGRES_HOST: postgres
   POSTGRES_PORT: "5432"
@@ -20,7 +20,7 @@ spec:
     storage: 1Gi
   accessModes:
     - ReadWriteOnce
-  hostPath:        # For testing; in cloud use storageClass (e.g., awsEBS, gcePersistentDisk)
+  hostPath:
     path: /mnt/data/postgres
 ---
 apiVersion: v1

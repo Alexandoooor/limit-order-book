@@ -25,7 +25,8 @@ RUN apk add --no-cache sqlite
 WORKDIR /app
 
 COPY schema.sql ./
-RUN sqlite3 orderbook.db < schema.sql
+RUN mkdir -p trades && \
+    sqlite3 trades/orderbook.db < schema.sql
 
 COPY --from=build /app/limit-order-book ./
 EXPOSE 3000

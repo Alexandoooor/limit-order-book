@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: limit-order-book
-          image: limit-order-book:1.15
+          image: limit-order-book:1.20
           ports:
             - containerPort: 3000
           env:

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"limit-order-book/engine"
 	"limit-order-book/server"
@@ -22,9 +23,13 @@ func main() {
 	server.Logger = logger
 
 
-	db := engine.SetupDB()
-	defer db.Close()
-	storage := engine.SqlStorage{Database: db}
+	// db := engine.SetupDB()
+	// defer db.Close()
+	db := engine.InitPostgres()
+	defer db.Close(context.Background())
+
+	storage := engine.PostgresStorage{Database: db}
+	// storage := engine.SqlStorage{Database: db}
 	// storage := engine.JsonStorage{}
 	ob := engine.NewOrderBook()
 	ob.AddStorage(&storage)

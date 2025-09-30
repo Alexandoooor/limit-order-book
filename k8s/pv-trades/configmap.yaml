@@ -15,5 +15,5 @@ metadata:
   labels:
     app: limit-order-book
 data:
-  # trades: "app/trades/trades.json"
-  trades: "app/orderbook.db"
+  # trades: "/app/trades/trades.json"
+  trades: "/app/trades/orderbook.db"
