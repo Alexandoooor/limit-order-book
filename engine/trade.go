@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 )
+
 type Trade struct {
 	ID 	 uuid.UUID `json:"id"`
 	Price    int       `json:"price"`
@@ -21,7 +22,7 @@ func (t *Trade) String() string {
 		t.ID,
 		t.Price,
 		t.Size,
-		t.Time.Format(time.RFC3339Nano),
+		t.Time.Format(time.RFC3339),
 		t.BuyOrderID,
 		t.SellOrderID,
 	)

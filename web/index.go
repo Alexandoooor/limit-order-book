@@ -36,7 +36,7 @@ const IndexHTML = `<!doctype html>
 
 	.card{
 	width:100%;
-	max-width:950px;
+	max-width:1050px;
 	background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
 	border-radius:var(--radius);
 	padding:32px;

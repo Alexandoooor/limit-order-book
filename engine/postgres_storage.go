@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -137,9 +136,7 @@ func InitPostgres() *pgx.Conn {
 		    sell_order_id TEXT NOT NULL,
 		    price INTEGER NOT NULL,
 		    size INTEGER NOT NULL,
-		    time TIMESTAMP NOT NULL,
-		    CONSTRAINT fk_buy FOREIGN KEY (buy_order_id) REFERENCES orders(id),
-		    CONSTRAINT fk_sell FOREIGN KEY (sell_order_id) REFERENCES orders(id)
+		    time TIMESTAMP NOT NULL
 		);
 	`)
 
@@ -242,7 +239,7 @@ func (s *PostgresStorage) InsertOrder(o *OrderDTO) error {
 	_, err := s.Database.Exec(ctx, `
 		INSERT INTO orders (id, side, size, remaining, price, time, next_id, prev_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		o.Id.String(), o.Side, o.Size, o.Remaining, o.Price, o.Time.Format(time.RFC3339),
+		o.Id.String(), o.Side, o.Size, o.Remaining, o.Price, o.Time,
 		uuidToString(o.NextID), uuidToString(o.PrevID),
 	)
 	if err != nil {
@@ -347,7 +344,7 @@ func (s *PostgresStorage) InsertTrade(t *Trade) error {
 	_, err := s.Database.Exec(ctx, `
 		INSERT INTO trades (id, buy_order_id, sell_order_id, price, size, time)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
-		t.ID, t.BuyOrderID.String(), t.SellOrderID.String(), t.Price, t.Size, t.Time.Format(time.RFC3339),
+		t.ID, t.BuyOrderID.String(), t.SellOrderID.String(), t.Price, t.Size, t.Time,
 	)
 	if err != nil {
 		Logger.Printf("Error inserting trade: %s", err)
@@ -381,7 +378,7 @@ func getPostgresLevels(db *pgx.Conn) (map[Side]map[int]*LevelDTO, error) {
 	for rows.Next() {
 		var sideInt int
 		var price, volume, count int
-		var orderID *string // nullable since LEFT JOIN may return NULL
+		var orderID *string
 
 		if err := rows.Scan(&sideInt, &price, &volume, &count, &orderID); err != nil {
 			return nil, err
@@ -430,14 +427,12 @@ func getAllPostgresOrders(db *pgx.Conn) (map[uuid.UUID]*OrderDTO, error) {
 		var o OrderDTO
 		var idStr string
 		var nextID, prevID sql.NullString
-		var orderTime time.Time
 
-		if err := rows.Scan(&idStr, &o.Side, &o.Size, &o.Remaining, &o.Price, &orderTime, &nextID, &prevID); err != nil {
+		if err := rows.Scan(&idStr, &o.Side, &o.Size, &o.Remaining, &o.Price, &o.Time, &nextID, &prevID); err != nil {
 			return nil, err
 		}
 
 		o.Id = uuid.MustParse(idStr)
-		o.Time = orderTime
 
 		if nextID.Valid {
 			nid := uuid.MustParse(nextID.String)
@@ -469,161 +464,17 @@ func getAllPostgresTrades(db *pgx.Conn) ([]Trade, error) {
 
 	for rows.Next() {
 		var t Trade
-		var buyID, sellID, ts string
+		var buyID, sellID string
 
-		if err := rows.Scan(&t.ID, &buyID, &sellID, &t.Price, &t.Size, &ts); err != nil {
+		if err := rows.Scan(&t.ID, &buyID, &sellID, &t.Price, &t.Size, &t.Time); err != nil {
 			return nil, err
 		}
 
 		t.BuyOrderID = uuid.MustParse(buyID)
 		t.SellOrderID = uuid.MustParse(sellID)
-		t.Time, _ = time.Parse(time.RFC3339, ts)
 
 		trades = append(trades, t)
 	}
 
 	return trades, nil
 }
-// func getPostgresLevels(db *pgx.Conn) (map[Side]map[int]*LevelDTO, error) {
-// 	ctx := context.Background()
-// 	rows, err := db.Query(ctx, `SELECT side, price, volume, count FROM levels`)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-//
-// 	book := map[Side]map[int]*LevelDTO{
-// 		Buy:  {},
-// 		Sell: {},
-// 	}
-//
-// 	for rows.Next() {
-// 		var sideInt int
-// 		var l LevelDTO
-// 		if err := rows.Scan(&sideInt, &l.Price, &l.Volume, &l.Count); err != nil {
-// 			return nil, err
-// 		}
-//
-// 		orderRows, err := db.Query(ctx, `SELECT order_id FROM level_orders WHERE level_side = $1 AND level_price = $2`, sideInt, l.Price)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		for orderRows.Next() {
-// 			var oid string
-// 			if err := orderRows.Scan(&oid); err != nil {
-// 				orderRows.Close()
-// 				return nil, err
-// 			}
-// 			l.Orders = append(l.Orders, uuid.MustParse(oid))
-// 		}
-// 		orderRows.Close()
-//
-// 		side := Side(sideInt)
-// 		if book[side] == nil {
-// 			book[side] = make(map[int]*LevelDTO)
-// 		}
-// 		book[side][l.Price] = &l
-// 	}
-//
-// 	return book, nil
-// }
-
-// func getPostgresOrder(db *pgx.Conn, id uuid.UUID) (*OrderDTO, error) {
-// 	ctx := context.Background()
-// 	row := db.QueryRow(ctx, `
-// 		SELECT id, side, size, remaining, price, time, next_id, prev_id
-// 		FROM orders
-// 		WHERE id = $1`, id.String())
-//
-// 	var o OrderDTO
-// 	var nextID, prevID sql.NullString
-// 	var orderTime string
-//
-// 	err := row.Scan(&o.Id, &o.Side, &o.Size, &o.Remaining, &o.Price, &orderTime, &nextID, &prevID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	o.Time, _ = time.Parse(time.RFC3339, orderTime)
-//
-// 	if nextID.Valid {
-// 		nid := uuid.MustParse(nextID.String)
-// 		o.NextID = &nid
-// 	}
-// 	if prevID.Valid {
-// 		pid := uuid.MustParse(prevID.String)
-// 		o.PrevID = &pid
-// 	}
-//
-// 	return &o, nil
-// }
-//
-// func getAllPostgresOrders(db *pgx.Conn) (map[uuid.UUID]*OrderDTO, error) {
-// 	ctx := context.Background()
-// 	rows, err := db.Query(ctx, `SELECT id FROM orders`)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-//
-// 	orders := make(map[uuid.UUID]*OrderDTO)
-// 	for rows.Next() {
-// 		var idStr string
-// 		if err := rows.Scan(&idStr); err != nil {
-// 			return nil, err
-// 		}
-// 		o, err := getPostgresOrder(db, uuid.MustParse(idStr))
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		orders[uuid.MustParse(idStr)] = o
-// 	}
-// 	return orders, nil
-// }
-//
-// func getPostgresTrade(db *pgx.Conn, id uuid.UUID) (*Trade, error) {
-// 	ctx := context.Background()
-// 	row := db.QueryRow(ctx, `
-// 		SELECT id, buy_order_id, sell_order_id, price, size, time
-// 		FROM trades
-// 		WHERE id = $1`, id.String())
-//
-// 	var t Trade
-// 	var buyID, sellID string
-// 	var ts string
-//
-// 	err := row.Scan(&t.ID, &buyID, &sellID, &t.Price, &t.Size, &ts)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	t.BuyOrderID = uuid.MustParse(buyID)
-// 	t.SellOrderID = uuid.MustParse(sellID)
-// 	t.Time, _ = time.Parse(time.RFC3339, ts)
-//
-// 	return &t, nil
-// }
-//
-// func getAllPostgresTrades(db *pgx.Conn) ([]Trade, error) {
-// 	ctx := context.Background()
-// 	rows, err := db.Query(ctx, `SELECT id FROM trades`)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-//
-// 	var trades []Trade
-// 	for rows.Next() {
-// 		var idStr string
-// 		if err := rows.Scan(&idStr); err != nil {
-// 			return nil, err
-// 		}
-// 		t, err := getPostgresTrade(db, uuid.MustParse(idStr))
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		trades = append(trades, *t)
-// 	}
-//
-// 	return trades, nil
-// }

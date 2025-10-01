@@ -45,7 +45,7 @@ func (o *Order) String() string {
 		o.Size,
 		o.Remaining,
 		o.Price,
-		o.Time.Format(time.RFC3339Nano),
+		o.Time.Format(time.RFC3339),
 		nextID,
 		prevID,
 	)
