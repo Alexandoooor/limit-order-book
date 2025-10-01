@@ -1,4 +1,5 @@
 resources:
+  - postgres.yaml
   - deployment.yaml
   - configmap.yaml
   - pv.yaml

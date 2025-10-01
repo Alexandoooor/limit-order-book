@@ -38,21 +38,18 @@ func (s *PostgresStorage) ResetOrderBook() error {
 
 func (s *PostgresStorage) RestoreOrderBook() (*OrderBook, error) {
 	levelDTO, err := getPostgresLevels(s.Database)
-	Logger.Printf("Levels: %+v", levelDTO)
 	if err != nil {
 		Logger.Printf("Error getting levels from db: %s", err)
 		return nil, err
 	}
 
 	orderDTO, err := getAllPostgresOrders(s.Database)
-	Logger.Printf("Orders: %+v", orderDTO)
 	if err != nil {
 		Logger.Printf("Error getting orders from db: %s", err)
 		return nil, err
 	}
 
 	tradeDTO, err := getAllPostgresTrades(s.Database)
-	Logger.Printf("Trades: %+v", tradeDTO)
 	if err != nil {
 		Logger.Printf("Error getting trades from db: %s", err)
 		return nil, err
