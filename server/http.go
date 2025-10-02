@@ -66,6 +66,7 @@ func (s *Server) Serve() error {
 		err := s.ob.ResetOrderBook()
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]bool{"ok": false})
+			Logger.Printf("Failed to wipe orderbook: %s", err)
 		} else {
 			json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 		}

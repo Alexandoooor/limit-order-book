@@ -17,11 +17,11 @@ type PostgresStorage struct {
 func (s *PostgresStorage) ResetOrderBook() error {
 	ctx := context.Background()
 
-	if _, err := s.Database.Exec(ctx, `DELETE FROM levels`); err != nil {
+	if _, err := s.Database.Exec(ctx, `DELETE FROM level_orders`); err != nil {
 		return err
 	}
 
-	if _, err := s.Database.Exec(ctx, `DELETE FROM level_orders`); err != nil {
+	if _, err := s.Database.Exec(ctx, `DELETE FROM levels`); err != nil {
 		return err
 	}
 
