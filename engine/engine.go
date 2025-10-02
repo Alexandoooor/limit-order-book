@@ -137,6 +137,7 @@ func (ob *OrderBook) AddOrder(order Order) uuid.UUID {
 	if ok {
 		order.parentLevel = level
 		order.prevOrder = level.tailOrder
+		order.nextOrder = &order
 		level.tailOrder.nextOrder = &order
 		level.tailOrder = &order
 		level.Volume += order.Remaining

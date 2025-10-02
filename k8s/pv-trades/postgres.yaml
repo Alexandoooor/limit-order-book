@@ -7,6 +7,7 @@ type: Opaque
 stringData:
   ps_password: SecurePassword
 ---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,6 +20,7 @@ data:
   ps_host: postgres
   ps_port: "5432"
 ---
+
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -31,6 +33,7 @@ spec:
   hostPath:
     path: /mnt/data/postgres
 ---
+
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -42,8 +45,10 @@ spec:
     requests:
       storage: 1Gi
 ---
+
 apiVersion: apps/v1
-kind: Deployment
+# kind: Deployment
+kind: StatefulSet
 metadata:
   name: postgres
 spec:
@@ -95,6 +100,7 @@ spec:
           persistentVolumeClaim:
             claimName: postgres-pvc
 ---
+
 apiVersion: v1
 kind: Service
 metadata:

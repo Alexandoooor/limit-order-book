@@ -119,5 +119,5 @@ func placeOrder(w http.ResponseWriter, r *http.Request, ob *engine.OrderBook) {
 	json.NewEncoder(w).Encode(order)
 
 	Logger.Println(ob)
-	Logger.Println(ob.GetLevel(side, req.Price))
+	// Logger.Println(ob.GetLevel(side, req.Price))
 }

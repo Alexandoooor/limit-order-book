@@ -182,19 +182,16 @@ func (s *SqlStorage) ResetOrderBook() error {
 
 func (s *SqlStorage) RestoreOrderBook() (*OrderBook, error) {
 	levelDTO, err := getLevels(s.Database)
-	Logger.Printf("Levels: %+v", levelDTO)
 	if err != nil {
 		return nil, err
 	}
 
 	orderDTO, err := getAllOrders(s.Database)
-	Logger.Printf("Orders: %+v", orderDTO)
 	if err != nil {
 		return nil, err
 	}
 
 	tradeDTO, err := getAllTrades(s.Database)
-	Logger.Printf("Trades: %+v", tradeDTO)
 	if err != nil {
 		return nil, err
 	}

@@ -33,6 +33,7 @@ func (l *Level) ToDTO() *LevelDTO {
 		Volume: l.Volume,
 		Count:  l.Count,
 		Orders: []uuid.UUID{},
+		TailOrder: l.tailOrder.Id,
 	}
 	for o := l.headOrder; o != nil; o = o.nextOrder {
 		levelDTO.Orders = append(levelDTO.Orders, o.Id)

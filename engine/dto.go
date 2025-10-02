@@ -18,6 +18,7 @@ type LevelDTO struct {
 	Volume  int       `json:"volume"`
 	Count   int       `json:"count"`
 	Orders  []uuid.UUID `json:"orders"`
+	TailOrder uuid.UUID `json:"tailOrder"`
 }
 
 type OrderDTO struct {

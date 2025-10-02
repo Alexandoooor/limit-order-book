@@ -233,20 +233,26 @@ func (s *PostgresStorage) InsertLevel(side Side, l *LevelDTO) error {
 
 func (s *PostgresStorage) InsertOrder(o *OrderDTO) error {
 	ctx := context.Background()
-	_, err := s.Database.Exec(ctx, `
+
+	if _, err := s.Database.Exec(ctx, `
 		INSERT INTO orders (id, side, size, remaining, price, time, next_id, prev_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		o.Id.String(), o.Side, o.Size, o.Remaining, o.Price, o.Time,
 		uuidToString(o.NextID), uuidToString(o.PrevID),
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 
-	_, err = s.Database.Exec(ctx, `INSERT INTO level_orders (level_side, level_price, order_id) VALUES ($1, $2, $3)`,
+	if _, err := s.Database.Exec(ctx,
+		`UPDATE orders SET next_id = $1 WHERE id = $2`,
+		o.Id.String(), uuidToString(o.PrevID),
+	); err != nil {
+		return err
+	}
+
+	if _, err := s.Database.Exec(ctx, `INSERT INTO level_orders (level_side, level_price, order_id) VALUES ($1, $2, $3)`,
 		o.Side, o.Price, o.Id,
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 
@@ -267,6 +273,14 @@ func (s *PostgresStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	}
 
 	if _, err := s.Database.Exec(ctx, `DELETE FROM level_orders WHERE order_id = $1`, o.Id.String()); err != nil {
+		return err
+	}
+
+	if _, err := s.Database.Exec(ctx,
+		`UPDATE orders SET prev_id = $1 WHERE id = $2`,
+		uuidToString(o.NextID), uuidToString(o.NextID),
+	); err != nil {
+		Logger.Println(err)
 		return err
 	}
 
