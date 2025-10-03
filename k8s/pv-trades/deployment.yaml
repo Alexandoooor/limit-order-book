@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   name: limit-order-book-pv-trades
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: limit-order-book
@@ -17,7 +17,7 @@ spec:
         - name: amagnu-docker-secret
       containers:
         - name: limit-order-book
-          image: amagnu/limit-order-book:1.26
+          image: limit-order-book:1.36
           ports:
             - containerPort: 3000
           env:

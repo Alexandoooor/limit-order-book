@@ -45,7 +45,6 @@ func headers(w http.ResponseWriter, req *http.Request) {
 func (s *Server) Serve() error {
 	r := mux.NewRouter()
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
-		s.ob.RestoreOrderBook()
 		view := engine.BuildOrderBookView(s.ob)
 		tmpl := template.Must(template.New("index").Parse(web.IndexTemplate()))
 		tmpl.Execute(w, view)
@@ -58,7 +57,6 @@ func (s *Server) Serve() error {
 	})
 
 	r.HandleFunc("/api/order", func(w http.ResponseWriter, r *http.Request) {
-		s.ob.RestoreOrderBook()
 		placeOrder(w, r, s.ob)
 	})
 

@@ -85,7 +85,6 @@ func (ob *OrderBook) NewLevel(order *Order, side Side) *Level {
 	order.parentLevel = newLevel
 	order.prevOrder = newLevel.tailOrder
 	newLevel.tailOrder.nextOrder = order
-	newLevel.tailOrder = order
 
 	switch side {
 	case Buy:

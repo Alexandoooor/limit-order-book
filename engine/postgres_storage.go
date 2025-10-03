@@ -141,100 +141,38 @@ func InitPostgres() *pgx.Conn {
 		Logger.Fatalf("failed to create trades table: %s", err)
 	}
 
-	_, err = db.Exec(ctx, `
-		DROP TRIGGER IF EXISTS level_orders_after_insert ON level_orders;
-
-		CREATE OR REPLACE FUNCTION level_orders_after_insert() RETURNS TRIGGER AS $$
-		BEGIN
-		    UPDATE levels
-		    SET
-			count = count + 1,
-			volume = volume + (SELECT remaining FROM orders WHERE id = NEW.order_id)
-		    WHERE side = NEW.level_side AND price = NEW.level_price;
-		    RETURN NEW;
-		END;
-		$$ LANGUAGE plpgsql;
-
-		CREATE TRIGGER level_orders_after_insert
-		AFTER INSERT ON level_orders
-		FOR EACH ROW
-		EXECUTE FUNCTION level_orders_after_insert();
-	`)
-
-	if err != nil {
-		Logger.Fatalf("failed to create level_orders_after_insert trigger: %s", err)
-	}
-
-	_, err = db.Exec(ctx, `
-		DROP TRIGGER IF EXISTS level_orders_after_delete ON level_orders;
-
-		CREATE OR REPLACE FUNCTION level_orders_after_delete() RETURNS TRIGGER AS $$
-		BEGIN
-		    UPDATE levels
-		    SET
-			count = count - 1,
-			volume = volume - (SELECT remaining FROM orders WHERE id = OLD.order_id)
-		    WHERE side = OLD.level_side AND price = OLD.level_price;
-		    RETURN OLD;
-		END;
-		$$ LANGUAGE plpgsql;
-
-		CREATE TRIGGER level_orders_after_delete
-		AFTER DELETE ON level_orders
-		FOR EACH ROW
-		EXECUTE FUNCTION level_orders_after_delete();
-	`)
-
-	if err != nil {
-		Logger.Fatalf("failed to create level_orders_after_delete trigger: %s", err)
-	}
-
-	_, err = db.Exec(ctx, `
-		DROP TRIGGER IF EXISTS orders_after_update_remaining ON orders;
-
-		CREATE OR REPLACE FUNCTION orders_after_update_remaining() RETURNS TRIGGER AS $$
-		BEGIN
-		    UPDATE levels
-		    SET volume = volume + (NEW.remaining - OLD.remaining)
-		    WHERE side = NEW.side AND price = NEW.price;
-		    RETURN NEW;
-		END;
-		$$ LANGUAGE plpgsql;
-
-		CREATE TRIGGER orders_after_update_remaining
-		AFTER UPDATE OF remaining ON orders
-		FOR EACH ROW
-		EXECUTE FUNCTION orders_after_update_remaining();
-	`)
-
-	if err != nil {
-		Logger.Fatalf("failed to create orders_after_update_remaining trigger: %s", err)
-	}
-
 	return db
-
-
 }
 
 
 func (s *PostgresStorage) InsertLevel(side Side, l *LevelDTO) error {
 	ctx := context.Background()
-	_, err := s.Database.Exec(ctx, `
-		INSERT INTO levels (side, price, volume, count)
-		VALUES ($1, $2, $3, $4)`,
-		side, l.Price, 0, 0, //SQL-trigger takes care of updating volume and count when inserting an order
-	)
+	tx, err := s.Database.Begin(ctx)
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback(ctx)
 
-	return nil
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO levels (side, price, volume, count)
+		VALUES ($1, $2, $3, $4)`,
+		side, l.Price, 0, 0, //InsertOrder takes care of updating volume, count
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (s *PostgresStorage) InsertOrder(o *OrderDTO) error {
 	ctx := context.Background()
+	tx, err := s.Database.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 
-	if _, err := s.Database.Exec(ctx, `
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO orders (id, side, size, remaining, price, time, next_id, prev_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		o.Id.String(), o.Side, o.Size, o.Remaining, o.Price, o.Time,
@@ -243,55 +181,71 @@ func (s *PostgresStorage) InsertOrder(o *OrderDTO) error {
 		return err
 	}
 
-	if _, err := s.Database.Exec(ctx,
+	if _, err := tx.Exec(ctx,
 		`UPDATE orders SET next_id = $1 WHERE id = $2`,
 		o.Id.String(), uuidToString(o.PrevID),
 	); err != nil {
 		return err
 	}
 
-	if _, err := s.Database.Exec(ctx, `INSERT INTO level_orders (level_side, level_price, order_id) VALUES ($1, $2, $3)`,
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO level_orders (level_side, level_price, order_id) VALUES ($1, $2, $3)`,
 		o.Side, o.Price, o.Id,
 	); err != nil {
 		return err
 	}
 
-	return nil
+	if _, err := tx.Exec(ctx,
+		`UPDATE levels SET count = count + 1 WHERE side = $1 AND price = $2`,
+		o.Side, o.Price,
+	); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE levels SET volume = volume + $1 WHERE side = $2 AND price = $3`,
+		o.Remaining, o.Side, o.Price,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (s *PostgresStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	ctx := context.Background()
-	row := s.Database.QueryRow(ctx, `
-		SELECT o.side, o.price
-		FROM orders o
-		WHERE o.id = $1`, o.Id.String())
+	tx, err := s.Database.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 
-	var side string
-	var price int
-	if err := row.Scan(&side, &price); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM level_orders WHERE order_id = $1`, o.Id.String()); err != nil {
 		return err
 	}
 
-	if _, err := s.Database.Exec(ctx, `DELETE FROM level_orders WHERE order_id = $1`, o.Id.String()); err != nil {
-		return err
+	if _, err := tx.Exec(ctx,
+	       `UPDATE levels SET count = count - 1, volume = volume - $1 WHERE side = $2 AND price = $3`,
+	       o.Remaining, o.Side, o.Price,
+	); err != nil {
+	       return err
 	}
 
-	if _, err := s.Database.Exec(ctx,
+	if _, err := tx.Exec(ctx,
 		`UPDATE orders SET prev_id = $1 WHERE id = $2`,
 		uuidToString(o.NextID), uuidToString(o.NextID),
 	); err != nil {
-		Logger.Println(err)
 		return err
 	}
 
-	if _, err := s.Database.Exec(ctx, `DELETE FROM orders WHERE id = $1`, o.Id.String()); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM orders WHERE id = $1`, o.Id.String()); err != nil {
 		return err
 	}
 
-	row = s.Database.QueryRow(ctx, `
+	row := tx.QueryRow(ctx, `
 		SELECT COUNT(*)
 		FROM level_orders
-		WHERE level_side = $1 AND level_price = $2`, side, price)
+		WHERE level_side = $1 AND level_price = $2`, o.Side, o.Price)
 
 	var count int
 	if err := row.Scan(&count); err != nil {
@@ -299,30 +253,52 @@ func (s *PostgresStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	}
 
 	if count == 0 {
-		_, err := s.Database.Exec(ctx, `DELETE FROM levels WHERE side = $1 AND price = $2`, side, price)
+		_, err := tx.Exec(ctx, `DELETE FROM levels WHERE side = $1 AND price = $2`, o.Side, o.Price)
 		if err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return tx.Commit(ctx)
 }
 
 func (s *PostgresStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	ctx := context.Background()
-	_, err := s.Database.Exec(ctx, `
-		UPDATE orders
-		SET remaining = $1
-		WHERE id = $2`,
-		o.Remaining, o.Id.String(),
-	)
+	tx, err := s.Database.Begin(ctx)
 
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback(ctx)
+
+	row := tx.QueryRow(ctx, `
+	 	SELECT remaining FROM orders
+		WHERE id = $1`,
+		o.Id.String(),
+	)
+	var oldRemaining int
+	if err := row.Scan(&oldRemaining); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE orders
+		SET remaining = $1
+		WHERE id = $2`,
+		o.Remaining, o.Id.String(),
+	); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE levels SET volume = volume + $1 WHERE side = $2 AND price = $3`,
+		(o.Remaining - oldRemaining), o.Side, o.Price,
+	); err != nil {
+		return err
+	}
 
 	if o.Remaining <= 0 {
-		if _, err := s.Database.Exec(ctx, `
+		if _, err := tx.Exec(ctx, `
 			DELETE FROM level_orders
 			WHERE level_side = $1 AND level_price = $2 AND order_id = $3`,
 			o.Side, o.Price, o.Id.String(),
@@ -330,7 +306,7 @@ func (s *PostgresStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
 			return err
 		}
 
-		row := s.Database.QueryRow(ctx, `
+		row := tx.QueryRow(ctx, `
 			SELECT COUNT(*) FROM level_orders
 			WHERE level_side = $1 AND level_price = $2`, o.Side, o.Price)
 		var count int
@@ -338,7 +314,7 @@ func (s *PostgresStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
 			return err
 		}
 		if count == 0 {
-			if _, err := s.Database.Exec(ctx, `
+			if _, err := tx.Exec(ctx, `
 				DELETE FROM levels
 				WHERE side = $1 AND price = $2`,
 				o.Side, o.Price,
@@ -347,22 +323,29 @@ func (s *PostgresStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
 			}
 		}
 	}
-	return nil
+
+	return tx.Commit(ctx)
 }
 
 func (s *PostgresStorage) InsertTrade(t *Trade) error {
 	ctx := context.Background()
-	_, err := s.Database.Exec(ctx, `
+	tx, err := s.Database.Begin(ctx)
+
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO trades (id, buy_order_id, sell_order_id, price, size, time)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		t.ID, t.BuyOrderID.String(), t.SellOrderID.String(), t.Price, t.Size, t.Time,
-	)
-	if err != nil {
+	); err != nil {
 		Logger.Printf("Error inserting trade: %s", err)
 		return err
 	}
 
-	return err
+	return tx.Commit(ctx)
 }
 
 func getPostgresLevels(db *pgx.Conn) (map[Side]map[int]*LevelDTO, error) {
