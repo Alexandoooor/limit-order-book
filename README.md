@@ -20,19 +20,19 @@ Build the image after running eval
 - K8s dashboard `minikube dashboard`
 
 ConfigMap:
-    kubectl create configmap logfile --from-literal=logfile=
+    `kubectl create configmap logfile --from-literal=logfile=<PATH>`
 
 Restart deployment:
-    kubectl rollout restart deployment/kubernetes-limit-order-book
+    `kubectl rollout restart deployment/kubernetes-limit-order-book`
 
 Scale:
-    kubectl scale deployments/kubernetes-limit-order-book --replicas=4
+    `kubectl scale deployments/kubernetes-limit-order-book --replicas=4`
 
 Rollout updated image:
-    kubectl set image deployments/kubernetes-limit-order-book limit-order-book=limit-order-book:<TAG>
+    `kubectl set image deployments/kubernetes-limit-order-book limit-order-book=limit-order-book:<TAG>`
 
 Undo Rollout:
-    kubectl rollout undo deployments/kubernetes-limit-order-book
+    `kubectl rollout undo deployments/kubernetes-limit-order-book`
 
 
 Example:
@@ -44,17 +44,17 @@ Init sqlite:
     sqlite3 orderbook.db < schema.sql
 
 Postgres env-variables:
-
+```
 export POSTGRES_DB="local"
 export POSTGRES_USER="postgres"
 export POSTGRES_PASSWORD="SecurePassword"
 export POSTGRES_HOST="localhost"
 export POSTGRES_PORT="5432"
-
+```
 local-postgres:
 
-docker run --name local-postgres -e POSTGRES_PASSWORD=SecurePassword -e POSTGRES_DB=local -p 5432:5432 -d postgres:latest
+`docker run --name local-postgres -e POSTGRES_PASSWORD=SecurePassword -e POSTGRES_DB=local -p 5432:5432 -d postgres:latest`
 
-docker stop local-postgres
+`docker stop local-postgres`
 
-docker rm local-postgres
+`docker rm local-postgres`
