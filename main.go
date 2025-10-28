@@ -22,15 +22,10 @@ func main() {
 	server.Logger = logger
 
 
-	// db := engine.SetupDB()
-	// defer db.Close()
-	// storage := engine.SqlStorage{Database: db}
-
 	db := engine.InitPostgres()
 	defer db.Close(context.Background())
 
 	storage := engine.PostgresStorage{Database: db}
-	// storage := engine.JsonStorage{}
 	ob := engine.NewOrderBook()
 	ob.AddStorage(&storage)
 	ob.RestoreOrderBook()

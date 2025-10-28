@@ -17,7 +17,7 @@ spec:
         - name: amagnu-docker-secret
       containers:
         - name: limit-order-book
-          image: limit-order-book:1.36
+          image: amagnu/limit-order-book:1.37
           ports:
             - containerPort: 3000
           env:

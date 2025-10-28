@@ -8,12 +8,12 @@ import (
 )
 
 type Trade struct {
-	ID 	 uuid.UUID `json:"id"`
-	Price    int       `json:"price"`
-	Size     int       `json:"size"`
-	Time     time.Time `json:"time"`
-	BuyOrderID  uuid.UUID `json:"buyerId"`
-	SellOrderID uuid.UUID `json:"sellerId"`
+	ID 	 uuid.UUID
+	Price    int
+	Size     int
+	Time     time.Time
+	BuyOrderID  uuid.UUID
+	SellOrderID uuid.UUID
 }
 
 func (t *Trade) String() string {
