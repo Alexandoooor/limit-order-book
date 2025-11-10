@@ -274,7 +274,7 @@ const IndexHTML = `<!doctype html>
 	</div>
 
 	<footer>
-		<div class="hint">New Connected Pod: {{.Hostname}}</div>
+		<div class="hint">Connected Pod: {{.Hostname}}</div>
 	</footer>
 
 	<script>

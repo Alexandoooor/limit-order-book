@@ -5,6 +5,7 @@ import (
 	"flag"
 	"limit-order-book/engine"
 	"limit-order-book/server"
+	"limit-order-book/storage"
 	"limit-order-book/util"
 	"strconv"
 )
@@ -20,12 +21,13 @@ func main() {
 	logger := util.SetupLogging()
 	engine.Logger = logger
 	server.Logger = logger
+	storage.Logger = logger
 
 
-	db := engine.InitPostgres()
+	db := storage.InitPostgres()
 	defer db.Close(context.Background())
 
-	storage := engine.PostgresStorage{Database: db}
+	storage := storage.PostgresStorage{Database: db}
 	ob := engine.NewOrderBook()
 	ob.AddStorage(&storage)
 	ob.RestoreOrderBook()

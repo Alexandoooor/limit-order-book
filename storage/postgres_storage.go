@@ -1,14 +1,19 @@
-package engine
+package storage
 
 import (
 	"database/sql"
 	"context"
 	"fmt"
+	"log"
 	"os"
+
+	"limit-order-book/engine"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+var Logger *log.Logger
 
 type PostgresStorage struct {
 	Database *pgx.Conn
@@ -36,7 +41,7 @@ func (s *PostgresStorage) ResetOrderBook() error {
 	return nil
 }
 
-func (s *PostgresStorage) RestoreOrderBook() (*OrderBook, error) {
+func (s *PostgresStorage) RestoreOrderBook() (*engine.OrderBook, error) {
 	levelDTO, err := getPostgresLevels(s.Database)
 	if err != nil {
 		Logger.Printf("Error getting levels from db: %s", err)
@@ -56,7 +61,7 @@ func (s *PostgresStorage) RestoreOrderBook() (*OrderBook, error) {
 	}
 
 
-	obDTO := OrderBookDTO {
+	obDTO := engine.OrderBookDTO {
 		Levels: levelDTO,
 		Orders: orderDTO,
 		Trades: tradeDTO,
@@ -145,7 +150,7 @@ func InitPostgres() *pgx.Conn {
 }
 
 
-func (s *PostgresStorage) InsertLevel(side Side, l *LevelDTO) error {
+func (s *PostgresStorage) InsertLevel(side engine.Side, l *engine.LevelDTO) error {
 	ctx := context.Background()
 	tx, err := s.Database.Begin(ctx)
 	if err != nil {
@@ -164,7 +169,7 @@ func (s *PostgresStorage) InsertLevel(side Side, l *LevelDTO) error {
 	return tx.Commit(ctx)
 }
 
-func (s *PostgresStorage) InsertOrder(o *OrderDTO) error {
+func (s *PostgresStorage) InsertOrder(o *engine.OrderDTO) error {
 	ctx := context.Background()
 	tx, err := s.Database.Begin(ctx)
 	if err != nil {
@@ -212,7 +217,7 @@ func (s *PostgresStorage) InsertOrder(o *OrderDTO) error {
 	return tx.Commit(ctx)
 }
 
-func (s *PostgresStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
+func (s *PostgresStorage) DeleteOrder(ob *engine.OrderBookDTO, o *engine.OrderDTO) error {
 	ctx := context.Background()
 	tx, err := s.Database.Begin(ctx)
 	if err != nil {
@@ -262,7 +267,7 @@ func (s *PostgresStorage) DeleteOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	return tx.Commit(ctx)
 }
 
-func (s *PostgresStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
+func (s *PostgresStorage) UpdateOrder(ob *engine.OrderBookDTO, o *engine.OrderDTO) error {
 	ctx := context.Background()
 	tx, err := s.Database.Begin(ctx)
 
@@ -327,7 +332,7 @@ func (s *PostgresStorage) UpdateOrder(ob *OrderBookDTO, o *OrderDTO) error {
 	return tx.Commit(ctx)
 }
 
-func (s *PostgresStorage) InsertTrade(t *Trade) error {
+func (s *PostgresStorage) InsertTrade(t *engine.Trade) error {
 	ctx := context.Background()
 	tx, err := s.Database.Begin(ctx)
 
@@ -348,7 +353,7 @@ func (s *PostgresStorage) InsertTrade(t *Trade) error {
 	return tx.Commit(ctx)
 }
 
-func getPostgresLevels(db *pgx.Conn) (map[Side]map[int]*LevelDTO, error) {
+func getPostgresLevels(db *pgx.Conn) (map[engine.Side]map[int]*engine.LevelDTO, error) {
 	ctx := context.Background()
 
 	// Single query joins levels with level_orders
@@ -364,9 +369,9 @@ func getPostgresLevels(db *pgx.Conn) (map[Side]map[int]*LevelDTO, error) {
 	}
 	defer rows.Close()
 
-	book := map[Side]map[int]*LevelDTO{
-		Buy:  {},
-		Sell: {},
+	book := map[engine.Side]map[int]*engine.LevelDTO{
+		engine.Buy:  {},
+		engine.Sell: {},
 	}
 
 	for rows.Next() {
@@ -378,15 +383,15 @@ func getPostgresLevels(db *pgx.Conn) (map[Side]map[int]*LevelDTO, error) {
 			return nil, err
 		}
 
-		side := Side(sideInt)
+		side := engine.Side(sideInt)
 
 		if book[side] == nil {
-			book[side] = make(map[int]*LevelDTO)
+			book[side] = make(map[int]*engine.LevelDTO)
 		}
 
 		level, exists := book[side][price]
 		if !exists {
-			level = &LevelDTO{
+			level = &engine.LevelDTO{
 				Price:  price,
 				Volume: volume,
 				Count:  count,
@@ -404,7 +409,7 @@ func getPostgresLevels(db *pgx.Conn) (map[Side]map[int]*LevelDTO, error) {
 }
 
 
-func getAllPostgresOrders(db *pgx.Conn) (map[uuid.UUID]*OrderDTO, error) {
+func getAllPostgresOrders(db *pgx.Conn) (map[uuid.UUID]*engine.OrderDTO, error) {
 	ctx := context.Background()
 	rows, err := db.Query(ctx, `
 		SELECT id, side, size, remaining, price, time, next_id, prev_id
@@ -415,10 +420,10 @@ func getAllPostgresOrders(db *pgx.Conn) (map[uuid.UUID]*OrderDTO, error) {
 	}
 	defer rows.Close()
 
-	orders := make(map[uuid.UUID]*OrderDTO)
+	orders := make(map[uuid.UUID]*engine.OrderDTO)
 
 	for rows.Next() {
-		var o OrderDTO
+		var o engine.OrderDTO
 		var idStr string
 		var nextID, prevID sql.NullString
 
@@ -443,7 +448,7 @@ func getAllPostgresOrders(db *pgx.Conn) (map[uuid.UUID]*OrderDTO, error) {
 	return orders, nil
 }
 
-func getAllPostgresTrades(db *pgx.Conn) ([]Trade, error) {
+func getAllPostgresTrades(db *pgx.Conn) ([]engine.Trade, error) {
 	ctx := context.Background()
 	rows, err := db.Query(ctx, `
 		SELECT id, buy_order_id, sell_order_id, price, size, time
@@ -454,10 +459,10 @@ func getAllPostgresTrades(db *pgx.Conn) ([]Trade, error) {
 	}
 	defer rows.Close()
 
-	var trades []Trade
+	var trades []engine.Trade
 
 	for rows.Next() {
-		var t Trade
+		var t engine.Trade
 		var buyID, sellID string
 
 		if err := rows.Scan(&t.ID, &buyID, &sellID, &t.Price, &t.Size, &t.Time); err != nil {
@@ -471,4 +476,11 @@ func getAllPostgresTrades(db *pgx.Conn) ([]Trade, error) {
 	}
 
 	return trades, nil
+}
+
+func uuidToString(u *uuid.UUID) interface{} {
+	if u == nil {
+		return nil
+	}
+	return u.String()
 }
